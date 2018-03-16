@@ -7,6 +7,9 @@
  */
 
 #include <stdio.h>
+#include <string.h>
+
+const int MAX_INPUT_SIZE = 1024;
 
 void InteractiveMode();
 void BatchMode(char *path);
@@ -29,8 +32,13 @@ main(int argc, char *argv[]) {
 
 void
 InteractiveMode(void) {
+	
+	char raw_input_string[MAX_INPUT_SIZE];
+
 	while (1) {
 		printf("prompt> ");
+		fgets(raw_input_string, MAX_INPUT_SIZE, stdin);
+		printf("%s", raw_input_string); 
 	}
 }
 
