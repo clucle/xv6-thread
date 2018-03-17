@@ -12,13 +12,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "trim.h"
+
 const int MAX_INPUT_SIZE = 1024;
 
 void InteractiveMode();
 void BatchMode(char *path);
 
 
-void RunCommand(char *cmd);
+void RunCommand(char *raw_cmd);
 
 int
 main(int argc, char *argv[]) {
@@ -44,7 +46,12 @@ InteractiveMode(void) {
 	while (1) {
 		printf("prompt> ");
 		fgets(raw_input_string, MAX_INPUT_SIZE, stdin);
-		printf("%s", raw_input_string);
+		
+		// delete new line at end of string
+		size_t l_string = strlen(raw_input_string) - 1;
+		if (*raw_input_string && raw_input_string[l_string] == '\n')
+			raw_input_string[l_string] = '\0';
+
 		RunCommand(raw_input_string);
 	}
 }
@@ -55,7 +62,18 @@ BatchMode(char *path) {
 }
 
 void
-RunCommand(char *cmd) {
+RunCommand(char *raw_cmd) {
+	char *token;
+	char *cmd;
+
+	token = strtok(raw_cmd, ";");
+
+	do {
+		cmd = trim(token);
+		printf("token : %s %s\n", token, cmd);
+
+	} while ((token = strtok(NULL, ";")) != NULL);
+
 	char **arguments = (char **)malloc(sizeof(char *) * 1);
 	arguments[0] = "";
 	execvp(cmd, arguments);
