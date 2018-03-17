@@ -6,13 +6,19 @@
  * @since  2018-03-16
  */
 
+
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 const int MAX_INPUT_SIZE = 1024;
 
 void InteractiveMode();
 void BatchMode(char *path);
+
+
+void RunCommand(char *cmd);
 
 int
 main(int argc, char *argv[]) {
@@ -38,7 +44,8 @@ InteractiveMode(void) {
 	while (1) {
 		printf("prompt> ");
 		fgets(raw_input_string, MAX_INPUT_SIZE, stdin);
-		printf("%s", raw_input_string); 
+		printf("%s", raw_input_string);
+		RunCommand(raw_input_string);
 	}
 }
 
@@ -47,3 +54,9 @@ BatchMode(char *path) {
 	printf("%s\n", path);	
 }
 
+void
+RunCommand(char *cmd) {
+	char **arguments = (char **)malloc(sizeof(char *) * 1);
+	arguments[0] = "";
+	execvp(cmd, arguments);
+}
