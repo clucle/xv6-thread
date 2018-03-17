@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 #include "trim.h"
 
@@ -68,13 +69,24 @@ RunCommand(char *raw_cmd) {
 
 	token = strtok(raw_cmd, ";");
 
+	pid_t pid, wpid;
+	int status = 0;
+
 	do {
 		cmd = trim(token);
-		printf("token : %s %s\n", token, cmd);
+
+		pid = fork();
+
+		if (pid < 0) {
+			printf("ERR : Fail Fork\n");
+		} else if (pid == 0) {	
+			char **arguments = (char **)malloc(sizeof(char *) * 1);
+			arguments[0] = "";
+			execvp("ls", arguments);
+		}
 
 	} while ((token = strtok(NULL, ";")) != NULL);
 
-	char **arguments = (char **)malloc(sizeof(char *) * 1);
-	arguments[0] = "";
-	execvp(cmd, arguments);
+	// wait all child process works
+	while ((wpid = wait(&status)) > 0);
 }
