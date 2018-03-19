@@ -70,7 +70,7 @@ InteractiveMode(void) {
 				
 		if (feof(stdin)) {
 			printf("\n");
-			exit(0);
+			exit(0);	
 		}
 		// delete new line at end of string
 		size_t l_string = strlen(raw_input_string) - 1;
@@ -78,7 +78,6 @@ InteractiveMode(void) {
 		if (*raw_input_string && raw_input_string[l_string] == '\n') {
 			raw_input_string[l_string] = '\0';
 		}
-
 		ExecuteCommandLine(raw_input_string);
 	}
 }
@@ -95,11 +94,12 @@ ExecuteCommandLine(char *raw_cmd) {
 
 	token = strtok(raw_cmd, ";");
 
-	pid_t pid, wpid;
-	int status = 0;
+	pid_t pid;
 
 	int isFork;
-	
+
+	pid_t child_pids[20];
+	int cnt_childs = 0;
 
 	do {
 		if (token == NULL) continue;
@@ -113,6 +113,13 @@ ExecuteCommandLine(char *raw_cmd) {
 				isFork = 0;
 			}
 		}
+		
+		if (strlen(cmd) > 3 && cmd[0] == 'q' && cmd[1] == 'u' &&
+							   cmd[2] == 'i' && cmd[3] == 't') {
+			if (strlen(cmd) == 4 || cmd[4] == ' ') {
+				exit(0);
+			}
+		}
 
 		if (isFork) {
 			pid = fork();
@@ -121,13 +128,22 @@ ExecuteCommandLine(char *raw_cmd) {
 				printf("ERR : Fail Fork\n");
 			} else if (pid == 0) {
 				ExecuteCommand(cmd);
+			} else {
+				child_pids[cnt_childs] = pid;
+				cnt_childs++;
 			}
 		}
 
 	} while ((token = strtok(NULL, ";")) != NULL);
-
+	
 	// wait all child process works
-	while ((wpid = wait(&status)) > 0);
+	//while ((wpid = wait(&status)) > 0);
+	if (pid > 0) {
+		int i;
+		for (i = 0; i < cnt_childs; i++) {
+			waitpid(child_pids[i], NULL, 0);
+		}
+	}
 }
 
 void
@@ -147,6 +163,7 @@ ExecuteCommand(char* cmd) {
 
 	execvp(cmd, arguments);
 	printf("%s\n", strerror(errno));
+	exit(0);
 }
 
 void
