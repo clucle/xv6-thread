@@ -7,6 +7,7 @@
  */
 
 #define _XOPEN_SOURCE 500
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <string.h>
@@ -84,7 +85,32 @@ InteractiveMode(void) {
 
 void
 BatchMode(char *path) {
-	printf("%s\n", path);	
+	FILE *fp;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+
+	fp = fopen(path, "r");
+
+	if (fp == NULL) {
+		exit(EXIT_FAILURE);
+	}
+
+	while ((read = getline(&line, &len, fp)) != -1) {
+		if (feof(stdin)) {
+			printf("\n");
+			exit(0);
+		}
+		printf("%s", line);
+		ExecuteCommandLine(line);
+	}
+
+	fclose(fp);
+	
+	if (line) {
+		free(line);
+	}
+	exit(EXIT_SUCCESS);
 }
 
 void
