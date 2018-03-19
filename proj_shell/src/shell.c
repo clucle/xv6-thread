@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/wait.h>
 
 #include "trim.h"
@@ -111,6 +112,7 @@ ExecuteCommand(char* cmd) {
 	char **arguments = (char **)malloc(sizeof(char *) * 1);
 	arguments[0] = "";
 	execvp(cmd, arguments);
+	printf("%s\n", strerror(errno));
 }
 
 void
