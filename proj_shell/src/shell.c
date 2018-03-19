@@ -19,13 +19,15 @@
 
 #include "trim.h"
 
+// Global Constants
 const int MAX_INPUT_SIZE = 1024;
 const int MAX_CMD_CNT = 20;
 
+// Two Modes
 void InteractiveMode();
 void BatchMode(char *path);
 
-
+// Execute General Command
 void ExecuteCommandLine(char *raw_cmd);
 void ExecuteCommand(char *cmd);
 
@@ -53,6 +55,11 @@ main(int argc, char *argv[]) {
 	return 0;
 }
 
+/**
+  * this function is used to ignore signal
+  * @param[in] sig - signal number
+  * @return void
+  */
 void
 SigHandler(int sig) {
 	if (sig == SIGINT) {
@@ -60,6 +67,10 @@ SigHandler(int sig) {
 	}
 }
 
+/**
+  * this function is used to execute Interactive Mode
+  * @return void
+  */
 void
 InteractiveMode(void) {
 	
@@ -85,6 +96,11 @@ InteractiveMode(void) {
 	}
 }
 
+/**
+  * this function is used to execute Batch Mode
+  * @param[in] path - file path to load commands
+  * @return void
+  */
 void
 BatchMode(char *path) {
 	FILE *fp;
@@ -115,6 +131,13 @@ BatchMode(char *path) {
 	exit(EXIT_SUCCESS);
 }
 
+/**
+  * this function is used to parse by ';' character multi commands
+  * general command is executed by ExecuteCommand
+  * exception is executed by exception handle
+  * @param[in] raw_cmd - multi commands or one command
+  * @return void
+  */
 void
 ExecuteCommandLine(char *raw_cmd) {
 	char *token;
@@ -165,7 +188,6 @@ ExecuteCommandLine(char *raw_cmd) {
 	} while ((token = strtok(NULL, ";")) != NULL);
 	
 	// wait all child process works
-	//while ((wpid = wait(&status)) > 0);
 	if (pid > 0) {
 		int i;
 		for (i = 0; i < cnt_childs; i++) {
@@ -174,6 +196,11 @@ ExecuteCommandLine(char *raw_cmd) {
 	}
 }
 
+/**
+  * this function is used to execute one command line
+  * @param[in] cmd - one command
+  * @return void
+  */
 void
 ExecuteCommand(char* cmd) {
 	char *arguments[MAX_CMD_CNT];
@@ -194,6 +221,11 @@ ExecuteCommand(char* cmd) {
 	exit(0);
 }
 
+/**
+  * this function is used to handle exception command "cd"
+  * @param[in] cmd - cd command
+  * @return void
+  */
 void
 ExecuteChangeDir(char* cmd) {
 	if (strlen(cmd) == 2) {
