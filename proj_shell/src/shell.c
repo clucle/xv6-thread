@@ -6,6 +6,7 @@
  * @since  2018-03-16
  */
 
+#define _XOPEN_SOURCE 500
 
 #include <stdio.h>
 #include <string.h>
@@ -13,6 +14,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #include "trim.h"
 
@@ -28,10 +30,15 @@ void ExecuteCommand(char *cmd);
 
 // Exception Function
 void ExecuteChangeDir(char *cmd);
+void SigHandler(int sig);
 
 int
 main(int argc, char *argv[]) {
-	
+
+	struct sigaction sa;
+	sa.sa_handler = SigHandler;
+	sigaction(SIGINT, &sa, NULL);
+
 	if (argc < 2) {
 		InteractiveMode();
 	} else if (argc == 2) {
@@ -46,6 +53,13 @@ main(int argc, char *argv[]) {
 }
 
 void
+SigHandler(int sig) {
+	if (sig == SIGINT) {
+		printf("\n");
+	}
+}
+
+void
 InteractiveMode(void) {
 	
 	char raw_input_string[MAX_INPUT_SIZE];
@@ -53,9 +67,14 @@ InteractiveMode(void) {
 	while (1) {
 		printf("prompt> ");
 		fgets(raw_input_string, MAX_INPUT_SIZE, stdin);
-		
+				
+		if (feof(stdin)) {
+			printf("\n");
+			exit(0);
+		}
 		// delete new line at end of string
 		size_t l_string = strlen(raw_input_string) - 1;
+		
 		if (*raw_input_string && raw_input_string[l_string] == '\n') {
 			raw_input_string[l_string] = '\0';
 		}
