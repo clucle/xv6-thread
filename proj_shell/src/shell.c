@@ -113,6 +113,7 @@ ExecuteCommand(char* cmd) {
 	execvp(cmd, arguments);
 }
 
-void ExecuteChangeDir(char* cmd) {
+void
+ExecuteChangeDir(char* cmd) {
 	// chdir(arguments);
 }
