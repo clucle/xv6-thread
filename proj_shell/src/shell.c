@@ -17,6 +17,7 @@
 #include "trim.h"
 
 const int MAX_INPUT_SIZE = 1024;
+const int MAX_CMD_CNT = 20;
 
 void InteractiveMode();
 void BatchMode(char *path);
@@ -110,8 +111,19 @@ ExecuteCommandLine(char *raw_cmd) {
 
 void
 ExecuteCommand(char* cmd) {
-	char **arguments = (char **)malloc(sizeof(char *) * 1);
-	arguments[0] = "";
+	char *arguments[MAX_CMD_CNT];
+	char *token;
+
+	token = strtok(cmd, " ");
+
+	int cnt_arg = 0;
+	do {
+		char* tmp_ptr = (char*)malloc(sizeof(char) * strlen(token));
+		strcpy(tmp_ptr, token);
+		arguments[cnt_arg] = tmp_ptr;
+		cnt_arg++;
+	} while ((token = strtok(NULL, " ")) != NULL);
+
 	execvp(cmd, arguments);
 	printf("%s\n", strerror(errno));
 }
