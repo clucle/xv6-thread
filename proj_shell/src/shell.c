@@ -67,6 +67,8 @@ InteractiveMode(void) {
 
 	while (1) {
 		printf("prompt> ");
+		
+		strcpy(raw_input_string, "");
 		fgets(raw_input_string, MAX_INPUT_SIZE, stdin);
 				
 		if (feof(stdin)) {
