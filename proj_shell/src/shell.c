@@ -118,5 +118,21 @@ ExecuteCommand(char* cmd) {
 
 void
 ExecuteChangeDir(char* cmd) {
-	// chdir(arguments);
+	if (strlen(cmd) == 2) {
+		if (chdir(getenv("HOME")) < 0) {
+			printf("%s\n", strerror(errno));
+		}
+		return ;
+	}
+
+	if (strlen(cmd) == 4 && cmd[3] == '~') {
+		if (chdir(getenv("HOME")) < 0) {
+			printf("%s\n", strerror(errno));
+		}
+		return ;
+	}
+
+	if (chdir(cmd + 3) < 0) {
+		printf("%s\n", strerror(errno));
+	}
 }
