@@ -72,17 +72,34 @@ RunCommand(char *raw_cmd) {
 	pid_t pid, wpid;
 	int status = 0;
 
+	int isFork;
+
 	do {
 		cmd = trim(token);
 
+		isFork = 1;
+
+		if (strlen(cmd) > 1 && cmd[0] == 'c' && cmd[1] == 'd') {
+			if (strlen(cmd) == 2 || cmd[2] == ' ') {
+				printf("cd at parent\n");
+				char **arguments = (char **)malloc(sizeof(char *) * 1);
+				arguments[0] = "..";
+				chdir(arguments[0]);
+				isFork = 0;
+			}
+		}
+
+		if (isFork) {
+
 		pid = fork();
 
-		if (pid < 0) {
-			printf("ERR : Fail Fork\n");
-		} else if (pid == 0) {	
-			char **arguments = (char **)malloc(sizeof(char *) * 1);
-			arguments[0] = "";
-			execvp("ls", arguments);
+			if (pid < 0) {
+				printf("ERR : Fail Fork\n");
+			} else if (pid == 0) {
+				char **arguments = (char **)malloc(sizeof(char *) * 1);
+				arguments[0] = "";
+				execvp(cmd, arguments);
+			}
 		}
 
 	} while ((token = strtok(NULL, ";")) != NULL);
