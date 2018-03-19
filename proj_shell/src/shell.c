@@ -21,7 +21,11 @@ void InteractiveMode();
 void BatchMode(char *path);
 
 
-void RunCommand(char *raw_cmd);
+void ExecuteCommandLine(char *raw_cmd);
+void ExecuteCommand(char *cmd);
+
+// Exception Function
+void ExecuteChangeDir(char *cmd);
 
 int
 main(int argc, char *argv[]) {
@@ -53,7 +57,7 @@ InteractiveMode(void) {
 		if (*raw_input_string && raw_input_string[l_string] == '\n')
 			raw_input_string[l_string] = '\0';
 
-		RunCommand(raw_input_string);
+		ExecuteCommandLine(raw_input_string);
 	}
 }
 
@@ -63,7 +67,7 @@ BatchMode(char *path) {
 }
 
 void
-RunCommand(char *raw_cmd) {
+ExecuteCommandLine(char *raw_cmd) {
 	char *token;
 	char *cmd;
 
@@ -81,24 +85,18 @@ RunCommand(char *raw_cmd) {
 
 		if (strlen(cmd) > 1 && cmd[0] == 'c' && cmd[1] == 'd') {
 			if (strlen(cmd) == 2 || cmd[2] == ' ') {
-				printf("cd at parent\n");
-				char **arguments = (char **)malloc(sizeof(char *) * 1);
-				arguments[0] = "..";
-				chdir(arguments[0]);
+				ExecuteChangeDir(cmd);
 				isFork = 0;
 			}
 		}
 
 		if (isFork) {
-
-		pid = fork();
-
+			pid = fork();
+			
 			if (pid < 0) {
 				printf("ERR : Fail Fork\n");
 			} else if (pid == 0) {
-				char **arguments = (char **)malloc(sizeof(char *) * 1);
-				arguments[0] = "";
-				execvp(cmd, arguments);
+				ExecuteCommand(cmd);
 			}
 		}
 
@@ -106,4 +104,15 @@ RunCommand(char *raw_cmd) {
 
 	// wait all child process works
 	while ((wpid = wait(&status)) > 0);
+}
+
+void
+ExecuteCommand(char* cmd) {
+	char **arguments = (char **)malloc(sizeof(char *) * 1);
+	arguments[0] = "";
+	execvp(cmd, arguments);
+}
+
+void ExecuteChangeDir(char* cmd) {
+	// chdir(arguments);
 }
