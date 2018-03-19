@@ -5,9 +5,7 @@
 int
 main(int argc, char *argv[])
 {
-	char *buf = "Hello xv6!";
-	int ret_val;
-	ret_val = myfunction(buf);
-	printf(1, "Return value : 0x%x\n", ret_val);
+	printf(1, "My pid is %d\n", getpid());
+	printf(1, "My ppid is %d\n", getppid());
 	exit();
 }
