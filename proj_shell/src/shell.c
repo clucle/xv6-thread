@@ -80,8 +80,10 @@ ExecuteCommandLine(char *raw_cmd) {
 	int status = 0;
 
 	int isFork;
+	
 
 	do {
+		if (token == NULL) continue;
 		cmd = trim(token);
 
 		isFork = 1;
