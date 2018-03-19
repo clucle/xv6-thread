@@ -55,8 +55,9 @@ InteractiveMode(void) {
 		
 		// delete new line at end of string
 		size_t l_string = strlen(raw_input_string) - 1;
-		if (*raw_input_string && raw_input_string[l_string] == '\n')
+		if (*raw_input_string && raw_input_string[l_string] == '\n') {
 			raw_input_string[l_string] = '\0';
+		}
 
 		ExecuteCommandLine(raw_input_string);
 	}
