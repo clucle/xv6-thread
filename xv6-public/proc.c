@@ -382,6 +382,25 @@ wait(void)
   }
 }
 
+void
+mlfq_run(struct cpu* c)
+{
+  struct proc* p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != RUNNABLE)
+      continue;
+
+    c->proc = p;
+    switchuvm(p);
+    p->state = RUNNING;
+
+    swtch(&(c->scheduler), p->context);
+    switchkvm();
+
+    c->proc = 0;
+  }
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -393,7 +412,6 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
   
@@ -403,26 +421,19 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
+    if (ptable.stride.cntproc > 0) {
+      if (ptable.mlfq.passvalue <= ptable.stride.p[1]->u1.passvalue) {
+        ptable.mlfq.passvalue += (1000 / (100 - ptable.stride.total_stride));
+        mlfq_run(c);
+      } else {
+        // STRIDE
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-    }
+      }
+    } else {
+      // MLFQ
+      mlfq_run(c);
+    }    
     release(&ptable.lock);
-
   }
 }
 
