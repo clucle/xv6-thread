@@ -601,6 +601,12 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   if (myproc()->type == 'm') myproc()->u2.tick = 0;
+  else if (myproc()->type == 's') {
+    struct proc* p = ptable.stride.p[1];
+    pop();
+    push(p);
+    p->u1.passvalue += p->u3.stride;
+  }
   myproc()->state = RUNNABLE;
   sched();
   release(&ptable.lock);
@@ -776,10 +782,6 @@ mlfq_yield(void)
 void
 stride_yield(void)
 {
-  struct proc* p = ptable.stride.p[1];
-  pop();
-  push(p);
-  p->u1.passvalue += p->u3.stride;
   yield();
 }
 
