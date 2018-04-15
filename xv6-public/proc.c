@@ -755,7 +755,11 @@ set_cpu_share(int tickets)
     p->type = 's';
     push(p);
   } else {
-    if (ptable.stride.total_tickets + tickets - p->u2.tickets > 80) return -1;
+    int future_tickets = ptable.stride.total_tickets + tickets - p->u2.tickets;
+    if (future_tickets > 80) return -1;
+    ptable.stride.total_tickets = future_tickets;
+    p->u2.tick = tickets;
+    p->u3.stride = 1000 / tickets;
   }
   release(&ptable.lock);
   return tickets;
