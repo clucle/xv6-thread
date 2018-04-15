@@ -55,6 +55,22 @@ sys_yield(void)
 }
 
 int
+sys_getlev(void)
+{
+  // TODO: get cur mlfq level
+  return getlev();
+}
+
+int
+sys_set_cpu_share(void)
+{
+  int n;
+  if (argint(0, &n) < 0)
+    return -1;
+  return set_cpu_share(n);
+}
+
+int
 sys_sbrk(void)
 {
   int addr;

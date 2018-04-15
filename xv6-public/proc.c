@@ -532,3 +532,15 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+int
+getlev(void)
+{
+  return -1;
+}
+
+int
+set_cpu_share(int stride)
+{
+  return -1;
+}
