@@ -72,7 +72,7 @@ push(struct proc *p)
 }
 
 void
-pop()
+pop(void)
 {
   int i = ptable.stride.cntproc;
   if (i == 0) return;
@@ -137,7 +137,7 @@ pinit(void)
 
 // Must be called with interrupts disabled
 int
-cpuid() {
+cpuid(void) {
   return mycpu()-cpus;
 }
 
@@ -743,7 +743,7 @@ procdump(void)
 }
 
 void
-mlfq_yield()
+mlfq_yield(void)
 {
   struct proc* p = myproc();
 #if DEBUG
@@ -768,7 +768,7 @@ mlfq_yield()
 }
 
 void
-stride_yield()
+stride_yield(void)
 {
   struct proc* p = ptable.stride.p[1];
   pop();
@@ -811,3 +811,4 @@ set_cpu_share(int tickets)
   release(&ptable.lock);
   return tickets;
 }
+
