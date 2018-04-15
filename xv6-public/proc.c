@@ -179,7 +179,10 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
-
+  p->type = 'm';
+  p->u1.priority = 0;
+  p->u2.tick = 0;
+  p->u3.runticks = 0;
   return p;
 }
 
