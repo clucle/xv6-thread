@@ -74,7 +74,7 @@ struct mlfq {
 struct pqstride {
   struct proc* p[NPROC + 1];
   int cntproc;
-  int total_stride;
+  int total_tickets;
 };
 
 // Process memory is laid out contiguously, low addresses first:

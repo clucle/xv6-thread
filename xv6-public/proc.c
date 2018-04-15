@@ -517,7 +517,7 @@ scheduler(void)
     acquire(&ptable.lock);
     if (ptable.stride.cntproc > 0) {
       if (ptable.mlfq.passvalue <= ptable.stride.p[1]->u1.passvalue) {
-        ptable.mlfq.passvalue += (1000 / (100 - ptable.stride.total_stride));
+        ptable.mlfq.passvalue += (1000 / (100 - ptable.stride.total_tickets));
         mlfq_run(c);
       } else {
         // STRIDE
@@ -739,5 +739,24 @@ getlev(void)
 int
 set_cpu_share(int tickets)
 {
-  return -1;
+  if (tickets == 0) return -1;
+  struct proc* p = myproc();
+  acquire(&ptable.lock);
+  if (p->type == 'm') {
+    if (ptable.stride.total_tickets + tickets > 80) return -1;
+    ptable.stride.total_tickets += tickets;
+    p->u2.tickets = tickets;
+    p->u3.stride = 1000 / tickets;
+    if (ptable.stride.cntproc == 0) {
+      p->u1.passvalue = ptable.mlfq.passvalue;
+    } else {
+      p->u1.passvalue = ptable.stride.p[1]->u1.passvalue;
+    }
+    p->type = 's';
+    push(p);
+  } else {
+    if (ptable.stride.total_tickets + tickets - p->u2.tickets > 80) return -1;
+  }
+  release(&ptable.lock);
+  return tickets;
 }
