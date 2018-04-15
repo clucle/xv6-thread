@@ -7,7 +7,7 @@
 #include "proc.h"
 #include "spinlock.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 struct {
   struct spinlock lock;
@@ -85,6 +85,9 @@ pop()
 void
 boost(void)
 {
+#if DEBUG
+  cprintf("[do boosting]\n");
+#endif
   ptable.mlfq.priority = 0;
   ptable.mlfq.index = 0;
   ptable.mlfq.tick = 0;
@@ -428,7 +431,10 @@ wait(void)
 
 void check_down_priority(struct proc* p) {
   if (p->u1.priority > 1) return ;
-  if (p->u3.runticks > runlimit(p->u1.priority)) {
+  if (p->u3.runticks >= runlimit(p->u1.priority)) {
+#if DEBUG
+    cprintf("PRIORITY DOWN\n");
+#endif
     p->u1.priority++;
     p->u2.tick = 0;
     p->u3.runticks = 0;
@@ -488,11 +494,15 @@ mlfq_run(struct cpu* c)
   if (find) {
     c->proc = p;
     
-    check_down_priority(p);
-    
     ptable.mlfq.tick++;
     p->u2.tick++;
     p->u3.runticks++;
+
+#if DEBUG
+    cprintf("schd call %d\n", myproc()->u1.priority);
+#endif
+
+    check_down_priority(p);
 
     switchuvm(p);
     p->state = RUNNING;
@@ -584,6 +594,7 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
+  if (myproc()->type == 'm') myproc()->u2.tick = 0;
   myproc()->state = RUNNABLE;
   sched();
   release(&ptable.lock);
@@ -735,13 +746,23 @@ void
 mlfq_yield()
 {
   struct proc* p = myproc();
+#if DEBUG
+    cprintf("mlfq called\n");
+#endif
   if (p->u2.tick < ticklimit(p->u1.priority)) {
     p->u2.tick++;
     p->u3.runticks++;
     ptable.mlfq.tick++;
+
+#if DEBUG
+    cprintf("mlfq call %d\n", myproc()->u1.priority);
+#endif
     check_down_priority(p);
   } else {
     p->u2.tick = 0;
+#if DEBUG
+    cprintf("YIELD\n");
+#endif
     yield();
   }
 }
