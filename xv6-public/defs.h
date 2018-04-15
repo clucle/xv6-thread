@@ -121,7 +121,7 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 int             getlev(void);
-int             set_cpu_share(int stride);
+int             set_cpu_share(int tickets);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

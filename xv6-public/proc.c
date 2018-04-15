@@ -540,7 +540,7 @@ getlev(void)
 }
 
 int
-set_cpu_share(int stride)
+set_cpu_share(int tickets)
 {
   return -1;
 }

@@ -27,7 +27,7 @@ int myfunction(char*);
 int getppid(void);
 void yield(void);
 int getlev(void);
-int set_cpu_share(int stride);
+int set_cpu_share(int tickets);
 
 // ulib.c
 int stat(char*, struct stat*);
