@@ -418,6 +418,16 @@ wait(void)
   }
 }
 
+
+void check_down_priority(struct proc* p) {
+  if (p->u1.priority > 1) return ;
+  if (p->u3.runticks > runlimit(p->u1.priority)) {
+    p->u1.priority++;
+    p->u2.tick = 0;
+    p->u3.runticks = 0;
+  }
+}
+  
 void
 mlfq_run(struct cpu* c)
 {
@@ -470,7 +480,9 @@ mlfq_run(struct cpu* c)
 
   if (find) {
     c->proc = p;
-
+    
+    check_down_priority(p);
+    
     ptable.mlfq.tick++;
     p->u2.tick++;
     p->u3.runticks++;
@@ -705,10 +717,11 @@ mlfq_yield()
     p->u2.tick++;
     p->u3.runticks++;
     ptable.mlfq.tick++;
-    return ;
+    check_down_priority(p);
+  } else {
+    p->u2.tick = 0;
+    yield();
   }
-  p->u2.tick = 0;
-  yield();
 }
 
 void
