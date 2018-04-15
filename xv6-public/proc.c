@@ -518,6 +518,12 @@ stride_run(struct cpu *c)
   struct proc* p;
   if (ptable.stride.cntproc > 0) {
     p = ptable.stride.p[1];
+    if (p->state != RUNNABLE) {
+      pop();
+      push(p);
+      p->u1.passvalue += p->u3.stride;
+      return ;
+    }
     c->proc = p;
     switchuvm(p);
     p->state = RUNNING;
