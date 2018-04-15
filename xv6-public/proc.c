@@ -615,6 +615,18 @@ procdump(void)
   }
 }
 
+void
+mlfq_yield()
+{
+  yield();
+}
+
+void
+stride_yield()
+{
+  yield();
+}
+
 int
 getlev(void)
 {
