@@ -794,9 +794,10 @@ set_cpu_share(int tickets)
 {
   if (tickets == 0) return -1;
   struct proc* p = myproc();
-  acquire(&ptable.lock);
   if (p->type == 'm') {
     if (ptable.stride.total_tickets + tickets > 80) return -1;
+    
+    acquire(&ptable.lock);
     ptable.stride.total_tickets += tickets;
     p->u2.tickets = tickets;
     p->u3.stride = 1000 / tickets;
@@ -810,6 +811,8 @@ set_cpu_share(int tickets)
   } else {
     int future_tickets = ptable.stride.total_tickets + tickets - p->u2.tickets;
     if (future_tickets > 80) return -1;
+    
+    acquire(&ptable.lock);
     ptable.stride.total_tickets = future_tickets;
     p->u2.tick = tickets;
     p->u3.stride = 1000 / tickets;
