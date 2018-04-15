@@ -14,6 +14,72 @@ struct {
   struct mlfq mlfq;
 } ptable;
 
+int
+comparenode(struct proc *low, struct proc *high)
+{
+  return (low->u1.passvalue < high->u1.passvalue);
+}
+
+void
+swap(struct proc* p1, struct proc* p2)
+{
+  struct proc* tmp = p1;
+  p1 = p2;
+  p2 = tmp;
+}
+
+void
+shiftup(int index)
+{
+  if (index <= 1) return ;
+  int parent = index >> 1;
+  if (comparenode(ptable.stride.p[index], ptable.stride.p[parent])) {
+    swap(ptable.stride.p[parent], ptable.stride.p[index]);
+    shiftup(parent);
+  }
+}
+
+void
+shiftdown(int index)
+{
+  int l = index * 2;
+  int r = index * 2 + 1;
+  int imin = index;
+
+  if (l <= ptable.stride.cntproc
+      && comparenode(ptable.stride.p[l], ptable.stride.p[imin])) {
+    imin = l;
+  }
+
+  if (r <= ptable.stride.cntproc
+      && comparenode(ptable.stride.p[r], ptable.stride.p[imin])) {
+    imin = r;
+  }
+
+  if (imin == index) return ;
+  swap(ptable.stride.p[imin], ptable.stride.p[index]);
+  shiftdown(imin);
+}
+
+void
+push(struct proc *p)
+{
+  int i = ++ptable.stride.cntproc;
+  ptable.stride.p[i] = p;
+  shiftup(i);
+}
+
+void
+pop()
+{
+  int i = ptable.stride.cntproc;
+  if (i == 0) return;
+  swap(ptable.stride.p[1], ptable.stride.p[i]);
+  ptable.stride.p[i] = 0;
+  ptable.stride.cntproc--;
+  shiftdown(1);
+}
+
 static struct proc *initproc;
 
 int nextpid = 1;
