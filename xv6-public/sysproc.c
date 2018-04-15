@@ -42,12 +42,14 @@ sys_getpid(void)
   return myproc()->pid;
 }
 
-int sys_getppid(void)
+int
+sys_getppid(void)
 {
   return myproc()->parent->pid;
 }
 
-void sys_yield(void)
+void
+sys_yield(void)
 {
   yield();
 }
