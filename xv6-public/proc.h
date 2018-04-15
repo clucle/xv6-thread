@@ -49,6 +49,32 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  char type;                   // default 'm' mlfq / call cpu share 's' stride
+  union {
+    int priority;  // m
+    int passvalue; // s
+  } u1;
+  union {
+    int tick;      // m
+    int tickets;   // s
+  } u2;
+  union {
+    int runticks;  // m
+    int stride;    // s
+  } u3;
+};
+
+struct mlfq {
+  int priority;
+  int passvalue;
+  int index;
+  int tick;
+};
+
+struct pqstride {
+  struct proc* p[NPROC + 1];
+  int cntproc;
+  int total_stride;
 };
 
 // Process memory is laid out contiguously, low addresses first:
