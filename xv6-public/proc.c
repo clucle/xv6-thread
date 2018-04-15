@@ -7,6 +7,8 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#define DEBUG 1
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -21,11 +23,11 @@ comparenode(struct proc *low, struct proc *high)
 }
 
 void
-swap(struct proc* p1, struct proc* p2)
+swap(struct proc** p1, struct proc** p2)
 {
-  struct proc* tmp = p1;
-  p1 = p2;
-  p2 = tmp;
+  struct proc* tmp = *p1;
+  *p1 = *p2;
+  *p2 = tmp;
 }
 
 void
@@ -34,7 +36,7 @@ shiftup(int index)
   if (index <= 1) return ;
   int parent = index >> 1;
   if (comparenode(ptable.stride.p[index], ptable.stride.p[parent])) {
-    swap(ptable.stride.p[parent], ptable.stride.p[index]);
+    swap(&ptable.stride.p[parent], &ptable.stride.p[index]);
     shiftup(parent);
   }
 }
@@ -57,7 +59,7 @@ shiftdown(int index)
   }
 
   if (imin == index) return ;
-  swap(ptable.stride.p[imin], ptable.stride.p[index]);
+  swap(&ptable.stride.p[imin], &ptable.stride.p[index]);
   shiftdown(imin);
 }
 
@@ -74,7 +76,7 @@ pop()
 {
   int i = ptable.stride.cntproc;
   if (i == 0) return;
-  swap(ptable.stride.p[1], ptable.stride.p[i]);
+  swap(&ptable.stride.p[1], &ptable.stride.p[i]);
   ptable.stride.p[i] = 0;
   ptable.stride.cntproc--;
   shiftdown(1);
@@ -338,6 +340,11 @@ exit(void)
   struct proc *p;
   int fd;
 
+  if (curproc->type == 's') {
+    ptable.stride.total_tickets -= curproc->u2.tickets;
+    pop();
+  }
+
   if(curproc == initproc)
     panic("init exiting");
 
@@ -495,6 +502,20 @@ mlfq_run(struct cpu* c)
   }
 }
 
+void
+stride_run(struct cpu *c)
+{
+  struct proc* p;
+  if (ptable.stride.cntproc > 0) {
+    p = ptable.stride.p[1];
+    c->proc = p;
+    switchuvm(p);
+    p->state = RUNNING;
+    swtch(&(c->scheduler), p->context);
+    switchkvm();
+  }
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -517,14 +538,15 @@ scheduler(void)
     acquire(&ptable.lock);
     if (ptable.stride.cntproc > 0) {
       if (ptable.mlfq.passvalue <= ptable.stride.p[1]->u1.passvalue) {
+        // MLFQ using STRIDE
         ptable.mlfq.passvalue += (1000 / (100 - ptable.stride.total_tickets));
         mlfq_run(c);
       } else {
-        // STRIDE
-
+        // STRIDE using STRIDE
+        stride_run(c);
       }
     } else {
-      // MLFQ
+      // JUST MLFQ
       mlfq_run(c);
     }    
     release(&ptable.lock);
@@ -727,6 +749,10 @@ mlfq_yield()
 void
 stride_yield()
 {
+  struct proc* p = ptable.stride.p[1];
+  pop();
+  push(p);
+  p->u1.passvalue += p->u3.stride;
   yield();
 }
 
