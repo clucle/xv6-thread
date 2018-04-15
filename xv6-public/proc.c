@@ -80,6 +80,23 @@ pop()
   shiftdown(1);
 }
 
+void
+boost(void)
+{
+  ptable.mlfq.priority = 0;
+  ptable.mlfq.index = 0;
+  ptable.mlfq.tick = 0;
+
+  struct proc* p;
+  for (p = ptable.proc; p< &ptable.proc[NPROC]; p++) {
+    if (p->type == 'm' && p->state == RUNNABLE) {
+      p->u1.priority = 0;
+      p->u2.tick = 0;
+      p->u3.runticks = 0;
+    }
+  }
+}
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -386,6 +403,9 @@ void
 mlfq_run(struct cpu* c)
 {
   struct proc* p;
+
+  if (ptable.mlfq.tick >= 100) boost();
+
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state != RUNNABLE)
       continue;
