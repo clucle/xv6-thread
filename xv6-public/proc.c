@@ -97,6 +97,25 @@ boost(void)
   }
 }
 
+int
+ticklimit(int priority)
+{
+  if (priority == 0) return 1;
+  if (priority == 1) return 2;
+  if (priority == 2) return 4;
+  panic("ticklimit get wrong priority");
+  return -1;
+}
+
+int
+runlimit(int priority)
+{
+  if (priority == 0) return 5;
+  if (priority == 1) return 10;
+  panic("run limit get wrong priority");
+  return -1;
+}
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -406,17 +425,60 @@ mlfq_run(struct cpu* c)
 
   if (ptable.mlfq.tick >= 100) boost();
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->state != RUNNABLE)
-      continue;
+  int i;
+  int icur = 0;
+  int min = 2;
 
+  for (i = icur; i < NPROC; i++) {
+    p = &ptable.proc[i];
+    if (p->type == 'm' && p->state == RUNNABLE) {
+      if (min > p->u1.priority) {
+        min = p->u1.priority;
+      }
+    }
+  }
+
+  if (ptable.mlfq.priority != min) {
+    // Level Change
+    ptable.mlfq.priority = min;
+    ptable.mlfq.index = 0;
+  }
+
+  icur = ptable.mlfq.index;
+  int find = 0;
+
+  for (i = icur; i < NPROC; i++) {
+    p = &ptable.proc[i];
+    if (p->type == 'm' && p->state == RUNNABLE
+        && p->u1.priority == ptable.mlfq.priority) {
+      find = 1;
+      ptable.mlfq.index = i + 1;
+      break;
+    }
+  }
+  i = 0;
+  if (find) i = NPROC;
+  for (; i < icur; i++) {
+    p = &ptable.proc[i];
+    if (p->type == 'm' && p->state == RUNNABLE
+        && p->u1.priority == ptable.mlfq.priority) {
+      find = 1;
+      ptable.mlfq.index = i + 1;
+      break;
+    }
+  }
+
+  if (find) {
     c->proc = p;
+
+    ptable.mlfq.tick++;
+    p->u2.tick++;
+    p->u3.runticks++;
+
     switchuvm(p);
     p->state = RUNNING;
-
     swtch(&(c->scheduler), p->context);
     switchkvm();
-
     c->proc = 0;
   }
 }
@@ -638,6 +700,14 @@ procdump(void)
 void
 mlfq_yield()
 {
+  struct proc* p = myproc();
+  if (p->u2.tick < ticklimit(p->u1.priority)) {
+    p->u2.tick++;
+    p->u3.runticks++;
+    ptable.mlfq.tick++;
+    return ;
+  }
+  p->u2.tick = 0;
   yield();
 }
 
@@ -650,7 +720,7 @@ stride_yield()
 int
 getlev(void)
 {
-  return -1;
+  return myproc()->u1.priority;
 }
 
 int
