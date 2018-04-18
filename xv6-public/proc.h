@@ -49,6 +49,32 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  char type;                   // default 'm' mlfq / call cpu share 's' stride
+  union {
+    int priority;              // [mlfq]   cur process priority
+    int passvalue;             // [stride] cur process passvalue
+  } u1;
+  union {
+    int tick;                  // [mlfq]   cur process tick
+    int tickets;               // [stride] cur process tickets
+  } u2;
+  union {
+    int runticks;              // [mlfq]   cur process runticks
+    int stride;                // [stride] cur process stride
+  } u3;
+};
+
+struct mlfq {
+  int priority;                // priority of mlfq queue
+  int passvalue;               // cur location (compare stride passvalue)
+  int index;                   // index using round robin
+  int tick;                    // mlfq tick for boost
+};
+
+struct pqstride {
+  struct proc* p[NPROC + 1];   // process priority queue
+  int cntproc;                 // count stride nodes
+  int total_tickets;           // stride total tickets <= 80
 };
 
 // Process memory is laid out contiguously, low addresses first:

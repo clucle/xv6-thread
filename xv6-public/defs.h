@@ -120,6 +120,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+void            mlfq_yield(void);
+void            stride_yield(void);
 int             getlev(void);
 int             set_cpu_share(int tickets);
 

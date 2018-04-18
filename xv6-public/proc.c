@@ -7,10 +7,119 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#define DEBUG 0
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
+  struct pqstride stride;
+  struct mlfq mlfq;
 } ptable;
+
+int
+comparenode(struct proc *low, struct proc *high)
+{
+  return (low->u1.passvalue < high->u1.passvalue);
+}
+
+void
+swap(struct proc** p1, struct proc** p2)
+{
+  struct proc* tmp = *p1;
+  *p1 = *p2;
+  *p2 = tmp;
+}
+
+void
+shiftup(int index)
+{
+  if (index <= 1) return ;
+  int parent = index >> 1;
+  if (comparenode(ptable.stride.p[index], ptable.stride.p[parent])) {
+    swap(&ptable.stride.p[parent], &ptable.stride.p[index]);
+    shiftup(parent);
+  }
+}
+
+void
+shiftdown(int index)
+{
+  int l = index * 2;
+  int r = index * 2 + 1;
+  int imin = index;
+
+  if (l <= ptable.stride.cntproc
+      && comparenode(ptable.stride.p[l], ptable.stride.p[imin])) {
+    imin = l;
+  }
+
+  if (r <= ptable.stride.cntproc
+      && comparenode(ptable.stride.p[r], ptable.stride.p[imin])) {
+    imin = r;
+  }
+
+  if (imin == index) return ;
+  swap(&ptable.stride.p[imin], &ptable.stride.p[index]);
+  shiftdown(imin);
+}
+
+void
+push(struct proc *p)
+{
+  int i = ++ptable.stride.cntproc;
+  ptable.stride.p[i] = p;
+  shiftup(i);
+}
+
+void
+pop(void)
+{
+  int i = ptable.stride.cntproc;
+  if (i == 0) return;
+  swap(&ptable.stride.p[1], &ptable.stride.p[i]);
+  ptable.stride.p[i] = 0;
+  ptable.stride.cntproc--;
+  shiftdown(1);
+}
+
+void
+boost(void)
+{
+#if DEBUG
+  cprintf("[do boosting]\n");
+#endif
+  ptable.mlfq.priority = 0;
+  ptable.mlfq.index = 0;
+  ptable.mlfq.tick = 0;
+
+  struct proc* p;
+  for (p = ptable.proc; p< &ptable.proc[NPROC]; p++) {
+    if (p->type == 'm' && p->state == RUNNABLE) {
+      p->u1.priority = 0;
+      p->u2.tick = 0;
+      p->u3.runticks = 0;
+    }
+  }
+}
+
+int
+ticklimit(int priority)
+{
+  if (priority == 0) return 1;
+  if (priority == 1) return 2;
+  if (priority == 2) return 4;
+  panic("ticklimit get wrong priority");
+  return -1;
+}
+
+int
+runlimit(int priority)
+{
+  if (priority == 0) return 5;
+  if (priority == 1) return 10;
+  panic("run limit get wrong priority");
+  return -1;
+}
 
 static struct proc *initproc;
 
@@ -28,7 +137,7 @@ pinit(void)
 
 // Must be called with interrupts disabled
 int
-cpuid() {
+cpuid(void) {
   return mycpu()-cpus;
 }
 
@@ -111,7 +220,10 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
-
+  p->type = 'm';
+  p->u1.priority = 0;
+  p->u2.tick = 0;
+  p->u3.runticks = 0;
   return p;
 }
 
@@ -231,6 +343,11 @@ exit(void)
   struct proc *p;
   int fd;
 
+  if (curproc->type == 's') {
+    ptable.stride.total_tickets -= curproc->u2.tickets;
+    pop();
+  }
+
   if(curproc == initproc)
     panic("init exiting");
 
@@ -311,6 +428,104 @@ wait(void)
   }
 }
 
+
+void check_down_priority(struct proc* p) {
+  if (p->u1.priority > 1) return ;
+  if (p->u3.runticks >= runlimit(p->u1.priority)) {
+#if DEBUG
+    cprintf("PRIORITY DOWN\n");
+#endif
+    p->u1.priority++;
+    p->u2.tick = 0;
+    p->u3.runticks = 0;
+  }
+}
+  
+void
+mlfq_run(struct cpu* c)
+{
+  struct proc* p;
+
+  if (ptable.mlfq.tick >= 100) boost();
+
+  int i;
+  int icur = 0;
+  int min = 2;
+
+  for (i = icur; i < NPROC; i++) {
+    p = &ptable.proc[i];
+    if (p->type == 'm' && p->state == RUNNABLE) {
+      if (min > p->u1.priority) {
+        min = p->u1.priority;
+      }
+    }
+  }
+
+  if (ptable.mlfq.priority != min) {
+    // Level Change
+    ptable.mlfq.priority = min;
+    ptable.mlfq.index = 0;
+  }
+
+  icur = ptable.mlfq.index;
+  int find = 0;
+
+  for (i = icur; i < NPROC; i++) {
+    p = &ptable.proc[i];
+    if (p->type == 'm' && p->state == RUNNABLE
+        && p->u1.priority == ptable.mlfq.priority) {
+      find = 1;
+      ptable.mlfq.index = i + 1;
+      break;
+    }
+  }
+  i = 0;
+  if (find) i = NPROC;
+  for (; i < icur; i++) {
+    p = &ptable.proc[i];
+    if (p->type == 'm' && p->state == RUNNABLE
+        && p->u1.priority == ptable.mlfq.priority) {
+      find = 1;
+      ptable.mlfq.index = i + 1;
+      break;
+    }
+  }
+
+  if (find) {
+    c->proc = p;
+    
+    ptable.mlfq.tick++;
+    p->u2.tick++;
+    p->u3.runticks++;
+
+#if DEBUG
+    cprintf("schd call %d\n", myproc()->u1.priority);
+#endif
+
+    check_down_priority(p);
+
+    switchuvm(p);
+    p->state = RUNNING;
+    swtch(&(c->scheduler), p->context);
+    switchkvm();
+    c->proc = 0;
+  }
+}
+
+void
+stride_run(struct cpu *c)
+{
+  struct proc* p;
+  if (ptable.stride.cntproc > 0) {
+    p = ptable.stride.p[1];
+    c->proc = p;
+    switchuvm(p);
+    p->state = RUNNING;
+    swtch(&(c->scheduler), p->context);
+    switchkvm();
+  }
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -322,7 +537,6 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
   
@@ -332,26 +546,20 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
-
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-    }
+    if (ptable.stride.cntproc > 0) {
+      if (ptable.mlfq.passvalue <= ptable.stride.p[1]->u1.passvalue) {
+        // MLFQ using STRIDE
+        ptable.mlfq.passvalue += (1000 / (100 - ptable.stride.total_tickets));
+        mlfq_run(c);
+      } else {
+        // STRIDE using STRIDE
+        stride_run(c);
+      }
+    } else {
+      // JUST MLFQ
+      mlfq_run(c);
+    }    
     release(&ptable.lock);
-
   }
 }
 
@@ -386,6 +594,7 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
+  if (myproc()->type == 'm') myproc()->u2.tick = 0;
   myproc()->state = RUNNABLE;
   sched();
   release(&ptable.lock);
@@ -533,14 +742,73 @@ procdump(void)
   }
 }
 
+void
+mlfq_yield(void)
+{
+  struct proc* p = myproc();
+#if DEBUG
+    cprintf("mlfq called\n");
+#endif
+  if (p->u2.tick < ticklimit(p->u1.priority)) {
+    p->u2.tick++;
+    p->u3.runticks++;
+    ptable.mlfq.tick++;
+
+#if DEBUG
+    cprintf("mlfq call %d\n", myproc()->u1.priority);
+#endif
+    check_down_priority(p);
+  } else {
+    p->u2.tick = 0;
+#if DEBUG
+    cprintf("YIELD\n");
+#endif
+    yield();
+  }
+}
+
+void
+stride_yield(void)
+{
+  struct proc* p = ptable.stride.p[1];
+  pop();
+  push(p);
+  p->u1.passvalue += p->u3.stride;
+  yield();
+}
+
 int
 getlev(void)
 {
-  return -1;
+  return myproc()->u1.priority;
 }
 
 int
 set_cpu_share(int tickets)
 {
-  return -1;
+  if (tickets == 0) return -1;
+  struct proc* p = myproc();
+  acquire(&ptable.lock);
+  if (p->type == 'm') {
+    if (ptable.stride.total_tickets + tickets > 80) return -1;
+    ptable.stride.total_tickets += tickets;
+    p->u2.tickets = tickets;
+    p->u3.stride = 1000 / tickets;
+    if (ptable.stride.cntproc == 0) {
+      p->u1.passvalue = ptable.mlfq.passvalue;
+    } else {
+      p->u1.passvalue = ptable.stride.p[1]->u1.passvalue;
+    }
+    p->type = 's';
+    push(p);
+  } else {
+    int future_tickets = ptable.stride.total_tickets + tickets - p->u2.tickets;
+    if (future_tickets > 80) return -1;
+    ptable.stride.total_tickets = future_tickets;
+    p->u2.tick = tickets;
+    p->u3.stride = 1000 / tickets;
+  }
+  release(&ptable.lock);
+  return tickets;
 }
+
