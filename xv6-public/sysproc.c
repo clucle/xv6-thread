@@ -71,6 +71,27 @@ sys_set_cpu_share(void)
 }
 
 int
+sys_thread_create(void)
+{
+  //TODO: Create Thread
+  return -1;
+}
+
+int
+sys_thread_join(void)
+{
+  //TODO: Join Thread
+  return -1;
+}
+
+int
+sys_thread_exit(void)
+{
+  //TODO: Exit Thread
+  return -1;
+}
+
+int
 sys_sbrk(void)
 {
   int addr;
