@@ -545,7 +545,7 @@ scheduler(void)
 {
   struct cpu *c = mycpu();
   c->proc = 0;
-  
+  boost(); 
   for(;;){
     // Enable interrupts on this processor.
     sti();
