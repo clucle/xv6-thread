@@ -57,7 +57,6 @@ sys_yield(void)
 int
 sys_getlev(void)
 {
-  // TODO: get cur mlfq level
   return getlev();
 }
 
