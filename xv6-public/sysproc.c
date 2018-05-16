@@ -117,7 +117,7 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
-  addr = myproc()->sz;
+  addr = myproc()->heap;
   if(growproc(n) < 0)
     return -1;
   return addr;

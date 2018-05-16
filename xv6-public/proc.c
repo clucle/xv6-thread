@@ -242,6 +242,8 @@ userinit(void)
     panic("userinit: out of memory?");
   inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
   p->sz = PGSIZE;
+  p->heap = PGSIZE;
+  p->stack = KERNBASE - PGSIZE;
   memset(p->tf, 0, sizeof(*p->tf));
   p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
   p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
@@ -273,7 +275,7 @@ growproc(int n)
   uint sz;
   struct proc *curproc = myproc();
 
-  sz = curproc->sz;
+  sz = curproc->heap;
   if(n > 0){
     if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
       return -1;
@@ -282,6 +284,7 @@ growproc(int n)
       return -1;
   }
   curproc->sz = sz;
+  curproc->heap = sz;
   switchuvm(curproc);
   return 0;
 }
@@ -309,6 +312,8 @@ fork(void)
     return -1;
   }
   np->sz = curproc->sz;
+  np->heap = curproc->heap;
+  np->stack = curproc->stack;
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
@@ -321,7 +326,6 @@ fork(void)
   np->cwd = idup(curproc->cwd);
 
   safestrcpy(np->name, curproc->name, sizeof(curproc->name));
-
   pid = np->pid;
 
   acquire(&ptable.lock);
