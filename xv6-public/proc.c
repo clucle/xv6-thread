@@ -930,11 +930,44 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
 int
 thread_join(thread_t thread, void **retval)
 {
-  return 0;
+  struct proc *p;
+  struct proc *curproc = myproc();
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->pid == thread)
+    {
+      while (1)
+      {
+        if (p->state == ZOMBIE)
+        {
+          *retval = (void*)p->maxtid;
+          kfree(p->kstack);
+          release(&ptable.lock);
+          return 0;
+        } else {
+          sleep(curproc, &ptable.lock);
+        }
+      }
+    }
+  }
+  release(&ptable.lock);
+  return -1;
 }
 
 void thread_exit(void *retval)
 {
+  struct proc *curproc = myproc();
+  if (curproc->main_thread == curproc)
+  {
+    exit();
+  }
 
+  curproc->maxtid = (int)retval;
+  acquire(&ptable.lock);
+  curproc->state = ZOMBIE;
+  wakeup1(curproc->main_thread);
+  sched();
+  panic("thread exit error with zombie");
 }
 
