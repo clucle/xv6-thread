@@ -62,6 +62,11 @@ struct proc {
     int runticks;              // [mlfq]   cur process runticks
     int stride;                // [stride] cur process stride
   } u3;
+  int tid;                     // [thread] thread id / init : -1
+  int heap;                    // [thread] top of heap (main thread)
+  int stack;                   // [thread] per process base_stack
+  int hasThread[64];           // [thread] find empty stack space;
+  struct proc *main_thread;    // [thread] main thread parent
 };
 
 struct mlfq {
