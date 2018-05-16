@@ -197,7 +197,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-
+  p->main_thread = p;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -829,6 +829,101 @@ set_cpu_share(int tickets)
 int
 thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
 {
+  struct proc *np;
+  struct proc *curproc = myproc();
+
+  // ptable has full process
+  if ((np = allocproc()) == 0)
+  {
+    panic("allocproc fail\n");
+    return -1;
+  }
+
+  // Set Parent
+  struct proc *mthread = curproc->main_thread;
+  np->main_thread = mthread;
+  *thread = np->pid;
+
+  // TODO: Set All Process Stride Value Change
+  if (mthread->type == 's')
+  {
+    // pass
+  }
+
+  // Copy File Descriptor
+  int i;
+  for (i = 0; i < NOFILE; i++)
+  {
+    if (curproc->ofile[i])
+    {
+      np->ofile[i] = filedup(curproc->ofile[i]);
+    }
+  }
+  np->cwd = idup(mthread->cwd);
+  safestrcpy(np->name, mthread->name, sizeof(mthread->name));
+
+  // Alloc Thread at Main Thread
+  int tid = 0;
+  for (i = 1; i < NPROC; i++)
+  {
+    if (!mthread->hasThread[i])
+    {
+      tid = i;
+      mthread->hasThread[i] = 1;
+      break;
+    }
+  }
+
+  if (tid == 0)
+  {
+    panic("can't find empty thread space");
+    return -1;
+  }
+
+  np->tid = tid;
+  
+  // Alloc Stack;
+ 
+  uint sz, ustack[2];
+  pde_t *pgdir;
+  pgdir = mthread->pgdir;
+
+
+
+  sz = mthread->stack - ((3 + (tid - 1)) * PGSIZE);
+  if (tid > mthread->maxtid) {
+    mthread->maxtid = tid;
+    // alloc
+    sz -= PGSIZE;
+    np->stack = sz;
+    if ((sz = allocuvm(pgdir, sz, sz + PGSIZE)) == 0)
+    {
+      panic("alloc uvm at thread create fail");
+      return -1;
+    }
+  }
+
+  ustack[0] = 0xffffffff;
+  ustack[1] = (uint)arg;
+  sz -= 8;
+  if (copyout(pgdir, sz, ustack, 8) < 0)
+  {
+    panic("copyout fail");
+    return -1;
+  }
+
+  np->tf->eax = 0;
+  *np->tf = *curproc->tf;
+  np->pgdir = pgdir;
+  np->sz = mthread->sz;
+  np->heap = mthread->heap;
+  np->tf->eip = (uint)start_routine;
+  np->tf->esp = sz;
+
+  // Change Process State
+  acquire(&ptable.lock);
+  np->state = RUNNABLE;
+  release(&ptable.lock);
   return 0;
 }
 

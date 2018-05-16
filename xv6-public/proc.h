@@ -67,6 +67,7 @@ struct proc {
   int stack;                   // [thread] per process base_stack
   int hasThread[64];           // [thread] find empty stack space;
   struct proc *main_thread;    // [thread] main thread parent
+  int maxtid;                  // [thread] stack max low;
 };
 
 struct mlfq {
