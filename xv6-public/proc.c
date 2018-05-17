@@ -344,17 +344,24 @@ fork(void)
 {
   int i, pid;
   struct proc *np;
-  struct proc *curproc = myproc()->main_thread;
-
+  struct proc *curproc = myproc();
+  struct proc *mthread = curproc->main_thread;
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
   }
   // Copy process state from proc.
-#if THREADDEBUG
-  cprintf("[FORK] %d %d %d\n", curproc->pid, curproc->heap, curproc->stack);
+#if THREADEBUG
+  cprintf("%d %d %d %d %d\n", 
+      mthread->pgdir,
+      mthread->stack, 
+      mthread->stack - (mthread->maxtid * PGSIZE),
+      curproc->stack, 
+      KERNBASE - (3 * PGSIZE) 
+  );
 #endif
-  if((np->pgdir = copyuvm(curproc->pgdir, curproc->heap, curproc->stack)) == 0){
+
+  if((np->pgdir = copyuvm(mthread->pgdir, mthread->heap, curproc->stack)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
@@ -363,9 +370,9 @@ fork(void)
 #if THREADEBUG
   cprintf("[FORKEND]\n");
 #endif
-  np->sz = curproc->sz;
-  np->heap = curproc->heap;
-  np->stack = curproc->stack - (curproc->maxtid * PGSIZE);
+  np->sz = mthread->sz;
+  np->heap = mthread->heap;
+  np->stack = mthread->stack - (curproc->maxtid * PGSIZE);
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
@@ -999,7 +1006,7 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
 
 
 
-  sz = mthread->stack - ((3 + (tid - 1)) * PGSIZE);
+  sz = mthread->stack - ( (tid - 1) * PGSIZE);
   if (tid > mthread->maxtid) {
     mthread->maxtid = tid;
     // alloc
