@@ -365,7 +365,7 @@ fork(void)
 #endif
   np->sz = curproc->sz;
   np->heap = curproc->heap;
-  np->stack = curproc->stack;
+  np->stack = curproc->stack - (curproc->maxtid * PGSIZE);
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
@@ -1092,6 +1092,7 @@ void deallocthread(struct proc* mthread, int pid)
 {
 
   struct proc* p;
+  int stack = mthread->stack;
   pde_t *pgdir = mthread->pgdir;
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
@@ -1109,7 +1110,7 @@ void deallocthread(struct proc* mthread, int pid)
   }
 
   uint sz = KERNBASE - 3 * PGSIZE;
-  uint min = sz - (mthread->maxtid * PGSIZE);
+  uint min = stack - (mthread->maxtid * PGSIZE);
   mthread->maxtid = 0;
   if ((sz = deallocuvm(mthread->pgdir, min, sz))== 0)
   {
