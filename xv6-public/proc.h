@@ -13,6 +13,10 @@ struct cpu {
 extern struct cpu cpus[NCPU];
 extern int ncpu;
 
+const int LIMITTICKETS = 800;
+const int MAXTICKETS = 1000;
+const int STRIDE = 10000;
+
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.
 // Don't need to save all the segment registers (%cs, etc),
