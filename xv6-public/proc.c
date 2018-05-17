@@ -96,7 +96,9 @@ pop(void)
 void
 pop_proc(struct proc* p)
 {
+  
   if (p->state == ZOMBIE || p->state == UNUSED) return ;
+  
   int i;
   int find = -1;
   for (i = 1; i < NPROC; i++) {
@@ -105,7 +107,7 @@ pop_proc(struct proc* p)
       break;
     }
   }
-
+  acquire(&ptable.slock);
   i = ptable.stride.cntproc;
   if (find == -1 || i == 0) return ;
   // pop find
@@ -113,6 +115,7 @@ pop_proc(struct proc* p)
   ptable.stride.p[i] = 0;
   ptable.stride.cntproc--;
   shiftdown(find);
+  release(&ptable.slock);
 }
 
 void
