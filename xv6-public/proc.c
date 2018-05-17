@@ -430,8 +430,6 @@ exit(void)
   struct proc *curproc = myproc();
   struct proc *p;
   
-  // Parent might be sleeping in wait().
-  wakeup1(curproc->parent);
   if (curproc->type == 's') { 
     ptable.stride.total_tickets -= curproc->main_thread->alltickets;
   }
@@ -443,6 +441,8 @@ exit(void)
   if (curproc->type == 's') {
     pop_proc(curproc);
   }
+
+  // Parent might be sleeping in wait().
   int fd;
   for (fd = 0; fd < NOFILE; fd++)
   {
@@ -454,6 +454,21 @@ exit(void)
   }
   curproc->main_thread->hasThread[curproc->tid] = 0;
   acquire(&ptable.lock);
+  
+  wakeup1(curproc->parent);
+#if THREADEBUG
+  cprintf("wakeup pid : %d\n", curproc->parent->pid);
+  cprintf("exit : %d\n", curproc->pid); 
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if (p->state != UNUSED) 
+    { cprintf("pid : %d ", p->pid);
+      printstate(p);
+      cprintf("\n");
+    }
+  }
+  cprintf("exit end : %d\n", curproc->pid);
+#endif
+  
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
@@ -503,7 +518,9 @@ wait(void)
       if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
+#if THREADEBUG
         cprintf("pid : %d\n", pid);
+#endif
         kfree(p->kstack);
         p->kstack = 0;
         freevm(p->pgdir);
