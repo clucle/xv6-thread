@@ -351,7 +351,6 @@ fork(void)
     return -1;
   }
   // Copy process state from proc.
-  cprintf("[FORK] %d\n", curproc->pid, mthread->pid);
 #if THREADEBUG
   cprintf("%d %d %d %d %d\n", 
       mthread->pgdir,
