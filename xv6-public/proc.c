@@ -416,8 +416,7 @@ exit(void)
   struct proc *p;
 
   if (curproc->type == 's') {
-    ptable.stride.total_tickets -= curproc->u2.tickets;
-    pop_proc(curproc);
+    ptable.stride.total_tickets -= curproc->main_thread->alltickets;
   }
 
   if(curproc == initproc)
@@ -851,6 +850,12 @@ getlev(void)
   return myproc()->u1.priority;
 }
 
+void
+share_tickets(struct proc *mthread)
+{
+  mthread->u3.stride = STRIDE / mthread->u2.tickets;
+}
+
 int
 set_cpu_share(int tickets)
 {
@@ -864,7 +869,9 @@ set_cpu_share(int tickets)
     acquire(&ptable.lock);
     ptable.stride.total_tickets += tickets;
     p->u2.tickets = tickets;
-    p->u3.stride = STRIDE / tickets;
+    p->main_thread->alltickets = tickets;
+    share_tickets(p->main_thread);
+
     if (ptable.stride.cntproc == 0) {
       p->u1.passvalue = ptable.mlfq.passvalue;
     } else {
@@ -879,7 +886,9 @@ set_cpu_share(int tickets)
     acquire(&ptable.lock);
     ptable.stride.total_tickets = future_tickets;
     p->u2.tick = tickets;
-    p->u3.stride = STRIDE / tickets;
+
+    p->main_thread->alltickets = tickets;
+    share_tickets(p->main_thread);
   }
   release(&ptable.lock);
   return saved;
@@ -904,10 +913,9 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
   np->parent = mthread->parent;
   *thread = np->pid;
 
-  // TODO: Set All Process Stride Value Change
   if (mthread->type == 's')
   {
-    // pass
+    share_tickets(mthread);
   }
 
   // Copy File Descriptor
@@ -1025,6 +1033,11 @@ void thread_exit(void *retval)
   }
 
   curproc->maxtid = (int)retval;
+  if (curproc->type == 's') {
+    struct proc *mthread = curproc->main_thread;
+    curproc->main_thread = curproc;
+    share_tickets(mthread);
+  }
   acquire(&ptable.lock);
   curproc->state = ZOMBIE;
   wakeup1(curproc->main_thread);
@@ -1040,6 +1053,7 @@ void deallocthread(struct proc* mthread, int pid)
   {
     if (p->pgdir == pgdir && p->pid != pid)
     {
+      if (p->type == 's') pop_proc(p);
       exitproc(p);
       begin_op();
       iput(p->cwd);

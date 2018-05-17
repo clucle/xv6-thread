@@ -68,6 +68,7 @@ struct proc {
   int hasThread[64];           // [thread] find empty stack space;
   struct proc *main_thread;    // [thread] main thread parent
   int maxtid;                  // [thread] stack max low;
+  int alltickets;              // [thread] all thread's ticket saved a tmainthread
 };
 
 struct mlfq {
