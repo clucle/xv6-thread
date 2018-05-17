@@ -1131,12 +1131,12 @@ void exitproc(struct proc *p)
       p->ofile[fd] = 0;
     }
   }
+  p->main_thread->hasThread[p->tid] = 0;
   p->tid = 0;
   p->heap = 0;
   p->stack = 0; 
-  p->main_thread = 0;
   p->maxtid = 0;
   p->state = UNUSED;
-  p->main_thread->hasThread[p->tid] = 0;
+  p->main_thread = 0;
 }
 
