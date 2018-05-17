@@ -1001,6 +1001,8 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
   struct proc *np;
   struct proc *curproc = myproc();
   struct proc *mthread = curproc->main_thread;
+  
+  while((__sync_val_compare_and_swap(&mthread->cguard, 0, 1)) == 1);
   // ptable has full process
   if ((np = allocproc()) == 0)
   {
@@ -1009,7 +1011,6 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
   }
 
   // Set Parent
-  struct proc *mthread = curproc->main_thread;
   np->main_thread = mthread;
   np->parent = mthread->parent;
   *thread = np->pid;
@@ -1092,6 +1093,7 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
   // Change Process State
   acquire(&ptable.lock);
   np->state = RUNNABLE;
+  __sync_fetch_and_sub(&mthread->cguard, 1);
   release(&ptable.lock);
   return 0;
 }
@@ -1150,18 +1152,12 @@ void thread_exit(void *retval)
 
 void deallocthread(struct proc* mthread, int pid)
 {
-
+  cprintf("prev %d %d\n", mthread->pid, mthread->cguard);
+  while((__sync_val_compare_and_swap(&mthread->cguard, 0, 1)) == 1);
+  cprintf("after %d %d\n", mthread->pid, mthread->cguard);
   struct proc* p;
   int stack = mthread->stack;
   pde_t *pgdir = mthread->pgdir;
-
-  uint sz = KERNBASE - 3 * PGSIZE;
-  uint min = stack - (mthread->maxtid * PGSIZE);
-  mthread->maxtid = 0;
-  if ((sz = deallocuvm(mthread->pgdir, min, sz))== 0)
-  {
-    panic("dealloc uvm err");
-  }
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
@@ -1174,6 +1170,15 @@ void deallocthread(struct proc* mthread, int pid)
       p->cwd = 0;
     }
   }
+
+  uint sz = KERNBASE - 3 * PGSIZE;
+  uint min = stack - (mthread->maxtid * PGSIZE);
+  mthread->maxtid = 0;
+  if ((sz = deallocuvm(mthread->pgdir, min, sz))== 0)
+  {
+    panic("dealloc uvm err");
+  }
+  __sync_fetch_and_sub(&mthread->cguard, 1);
 }
 
 void exitproc(struct proc *p)

@@ -70,7 +70,7 @@ struct proc {
   int maxtid;                  // [thread] stack max low;
   int alltickets;              // [thread] all thread's ticket saved a tmainthread
   int guard;                   // [thread] exit guard
-  int cgurad;                  // [thread] thread_create guard
+  int cguard;                  // [thread] thread_create guard
 };
 
 struct mlfq {
