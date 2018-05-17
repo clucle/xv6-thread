@@ -438,11 +438,22 @@ exit(void)
 
   if(curproc == initproc)
     panic("init exiting");
-
-  deallocthread(curproc, -1);
+  deallocthread(curproc, curproc->pid);
   
+  if (curproc->type == 's') {
+    pop_proc(curproc);
+  }
+  int fd;
+  for (fd = 0; fd < NOFILE; fd++)
+  {
+    if (curproc->ofile[fd])
+    {
+      fileclose(curproc->ofile[fd]);
+      curproc->ofile[fd] = 0;
+    }
+  }
+  curproc->main_thread->hasThread[curproc->tid] = 0;
   acquire(&ptable.lock);
-
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
@@ -492,6 +503,7 @@ wait(void)
       if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
+        cprintf("pid : %d\n", pid);
         kfree(p->kstack);
         p->kstack = 0;
         freevm(p->pgdir);
@@ -1158,6 +1170,7 @@ void exitproc(struct proc *p)
   p->heap = 0;
   p->stack = 0; 
   p->maxtid = 0;
+  p->pgdir = 0;
   p->state = UNUSED;
   p->main_thread = 0;
 }
