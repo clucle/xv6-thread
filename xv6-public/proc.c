@@ -237,6 +237,8 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->main_thread = p;
+  p->guard = 0;
+  p->cguard = 0;
   p->maxtid = 0;
   int i;
   for (i = 0; i < 64; i++) {
@@ -427,8 +429,16 @@ printstate(struct proc* p)
 void
 exit(void)
 {
+
   struct proc *curproc = myproc();
   struct proc *p;
+ 
+  struct proc *mthread = curproc->main_thread; 
+  int exlock = __sync_fetch_and_add(&mthread->guard, 1);
+  while (exlock > 0) {
+    yield();
+  }
+  cprintf("[EXIT] : %d\n", curproc->pid);
   
   if (curproc->type == 's') { 
     ptable.stride.total_tickets -= curproc->main_thread->alltickets;
@@ -990,7 +1000,7 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
 {
   struct proc *np;
   struct proc *curproc = myproc();
-
+  struct proc *mthread = curproc->main_thread;
   // ptable has full process
   if ((np = allocproc()) == 0)
   {
@@ -1078,7 +1088,7 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
   np->heap = mthread->heap;
   np->tf->eip = (uint)start_routine;
   np->tf->esp = sz;
-
+  cprintf("%d makes %d\n", curproc->pid, np->pid);
   // Change Process State
   acquire(&ptable.lock);
   np->state = RUNNABLE;
