@@ -121,6 +121,9 @@ runlimit(int priority)
   return -1;
 }
 
+void deallocthread(struct proc* p);
+void exitproc(struct proc* p);
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -198,6 +201,11 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->main_thread = p;
+  p->maxtid = 0;
+  int i;
+  for (i = 0; i < 64; i++) {
+    p->hasThread[i] = 0;
+  }
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -354,6 +362,8 @@ exit(void)
   if(curproc == initproc)
     panic("init exiting");
 
+  deallocthread(curproc);
+  /*
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
     if(curproc->ofile[fd]){
@@ -366,7 +376,7 @@ exit(void)
   iput(curproc->cwd);
   end_op();
   curproc->cwd = 0;
-
+  */
   acquire(&ptable.lock);
 
   // Parent might be sleeping in wait().
@@ -832,6 +842,7 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
   struct proc *np;
   struct proc *curproc = myproc();
 
+  // cprintf("create pid : %d,%d, maxtid %d\n", curproc->pid, curproc->main_thread->pid, curproc->maxtid);
   // ptable has full process
   if ((np = allocproc()) == 0)
   {
@@ -842,6 +853,7 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
   // Set Parent
   struct proc *mthread = curproc->main_thread;
   np->main_thread = mthread;
+  np->parent = mthread->parent;
   *thread = np->pid;
 
   // TODO: Set All Process Stride Value Change
@@ -942,6 +954,7 @@ thread_join(thread_t thread, void **retval)
         if (p->state == ZOMBIE)
         {
           *retval = (void*)p->maxtid;
+          exitproc(p);
           kfree(p->kstack);
           release(&ptable.lock);
           return 0;
@@ -971,3 +984,53 @@ void thread_exit(void *retval)
   panic("thread exit error with zombie");
 }
 
+void deallocthread(struct proc* mthread)
+{
+  struct proc* p;
+  pde_t *pgdir = mthread->pgdir;
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->pgdir == pgdir)
+    {
+      exitproc(p);
+      begin_op();
+      iput(p->cwd);
+      end_op();
+      p->cwd = 0;
+    }
+  }
+
+  uint sz = KERNBASE - 3 * PGSIZE;
+  uint min = sz - (mthread->maxtid * PGSIZE);
+  mthread->maxtid = 0;
+  if ((sz = deallocuvm(mthread->pgdir, min, sz))== 0)
+  {
+    panic("dealloc uvm err");
+  }
+}
+
+void exitproc(struct proc *p)
+{
+  int fd;
+  for (fd = 0; fd < NOFILE; fd++)
+  {
+    if (p->ofile[fd])
+    {
+      fileclose(p->ofile[fd]);
+      p->ofile[fd] = 0;
+    }
+  }
+  p->state = UNUSED;
+  p->main_thread->hasThread[p->tid] = 0;
+  
+  wakeup1(p->parent);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->parent == p) {
+      p->parent = initproc;
+      if (p->state == ZOMBIE)
+        wakeup1(initproc);
+    }
+  }
+  p->state = ZOMBIE;
+}
