@@ -46,43 +46,45 @@ int gcnt;
 int gpipe[2];
 
 int (*testfunc[NTEST])(void) = {
-  racingtest,
-  basictest,
-  jointest1,
-  jointest2,
-  stresstest,
+  
   exittest1,
   exittest2,
-  exectest,
-  sbrktest,
-  killtest,
-  pipetest,
-  sleeptest,
-  stridetest1,
-  stridetest2,
+  exittest1,
+  exittest2,
+  exittest1,
+  exittest2,
+  exittest1,
+  exittest2,
+  exittest1,
+  exittest2,
+  exittest1,
+  exittest2,
+  exittest1,
+  exittest2,
 };
 char *testname[NTEST] = {
-  "racingtest",
-  "basictest",
-  "jointest1",
-  "jointest2",
-  "stresstest",
+  
   "exittest1",
   "exittest2",
-  "exectest",
-  "sbrktest",
-  "killtest",
-  "pipetest",
-  "sleeptest",
-  "stridetest1",
-  "stridetest2",
+  "exittest1",
+  "exittest2",
+  "exittest1",
+  "exittest2",
+  "exittest1",
+  "exittest2",
+  "exittest1",
+  "exittest2",
+  "exittest1",
+  "exittest2",
+  "exittest1",
+  "exittest2",
 };
 
 int
 main(int argc, char *argv[])
 {
   int p;
-  for (p = 0; p <= 100; p++) {
+  for (p = 0; p <= 0; p++) {
     printf(1, "%d 'th TEST\n", p);
   int i;
   int ret;

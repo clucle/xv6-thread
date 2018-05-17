@@ -69,6 +69,7 @@ struct proc {
   struct proc *main_thread;    // [thread] main thread parent
   int maxtid;                  // [thread] stack max low;
   int alltickets;              // [thread] all thread's ticket saved a tmainthread
+  int guard;
 };
 
 struct mlfq {
