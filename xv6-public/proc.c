@@ -376,12 +376,12 @@ exit(void)
   iput(curproc->cwd);
   end_op();
   curproc->cwd = 0;
-  */
+*/
   acquire(&ptable.lock);
 
   // Parent might be sleeping in wait().
   wakeup1(curproc->parent);
-
+  cprintf("wakeup %d to %d\n", curproc->pid, curproc->parent->pid);
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
@@ -1023,14 +1023,15 @@ void exitproc(struct proc *p)
   p->state = UNUSED;
   p->main_thread->hasThread[p->tid] = 0;
   
-  wakeup1(p->parent);
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  // wakeup1(p->parent);
+  
+  /*for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->parent == p) {
       p->parent = initproc;
       if (p->state == ZOMBIE)
         wakeup1(initproc);
     }
-  }
-  p->state = ZOMBIE;
+  }*/
+  //p->state = UNUSED;
 }
