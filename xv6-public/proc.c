@@ -1144,20 +1144,6 @@ void deallocthread(struct proc* mthread, int pid)
   struct proc* p;
   int stack = mthread->stack;
   pde_t *pgdir = mthread->pgdir;
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-  {
-    if (p->pgdir == pgdir && p->pid != pid && p->state != UNUSED)
-    {
-      // if (p->type == 's') {
-        // pop_proc(p);
-      // }
-      exitproc(p);
-      begin_op();
-      iput(p->cwd);
-      end_op();
-      p->cwd = 0;
-    }
-  }
 
   uint sz = KERNBASE - 3 * PGSIZE;
   uint min = stack - (mthread->maxtid * PGSIZE);
@@ -1166,10 +1152,23 @@ void deallocthread(struct proc* mthread, int pid)
   {
     panic("dealloc uvm err");
   }
+
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->pgdir == pgdir && p->pid != pid && p->state != UNUSED)
+    {
+      exitproc(p);
+      begin_op();
+      iput(p->cwd);
+      end_op();
+      p->cwd = 0;
+    }
+  }
 }
 
 void exitproc(struct proc *p)
-{
+{ 
+  p->state = UNUSED;
   if (p->type == 's') {
     pop_proc(p);
   }
@@ -1188,7 +1187,6 @@ void exitproc(struct proc *p)
   p->stack = 0; 
   p->maxtid = 0;
   p->pgdir = 0;
-  p->state = UNUSED;
   p->main_thread = 0;
 }
 
