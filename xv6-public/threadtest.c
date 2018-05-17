@@ -81,6 +81,9 @@ char *testname[NTEST] = {
 int
 main(int argc, char *argv[])
 {
+  int p;
+  for (p = 0; p <= 100; p++) {
+    printf(1, "%d 'th TEST\n", p);
   int i;
   int ret;
   int pid;
@@ -119,6 +122,7 @@ main(int argc, char *argv[])
     }
     printf(1,"%d. %s finish\n", i, testname[i]);
     sleep(100);
+  }
   }
   exit();
 }
@@ -273,7 +277,7 @@ stressthreadmain(void *arg)
 int
 stresstest(void)
 {
-  const int nstress = 35000;
+  const int nstress = 2;
   thread_t threads[NUM_THREAD];
   int i, n;
   void *retval;
