@@ -853,7 +853,37 @@ getlev(void)
 void
 share_tickets(struct proc *mthread)
 {
-  mthread->u3.stride = STRIDE / mthread->u2.tickets;
+  struct proc *p;
+  int cnt = 0;
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->main_thread == mthread)
+    {
+      cnt++;
+    }
+  }
+
+  if (cnt == 0) panic("share_tickets panic\n");
+  cnt = mthread->alltickets / cnt;
+  if (cnt == 0) cnt = 1;
+  
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->main_thread == mthread)
+    {
+      p->u2.tickets = cnt;
+      p->u3.stride = STRIDE / cnt;
+      if (p->type == 'm')
+      {
+        // new process
+        p->type = 's';
+        p->u1.passvalue = mthread->u1.passvalue;
+        push(p);
+      }
+    }
+  }
+  
+  // mthread->u3.stride = STRIDE / mthread->u2.tickets;
 }
 
 int
@@ -870,15 +900,16 @@ set_cpu_share(int tickets)
     ptable.stride.total_tickets += tickets;
     p->u2.tickets = tickets;
     p->main_thread->alltickets = tickets;
-    share_tickets(p->main_thread);
 
     if (ptable.stride.cntproc == 0) {
       p->u1.passvalue = ptable.mlfq.passvalue;
     } else {
       p->u1.passvalue = ptable.stride.p[1]->u1.passvalue;
     }
-    p->type = 's';
-    push(p);
+
+    share_tickets(p->main_thread);
+    // p->type = 's';
+    // push(p);
   } else {
     int future_tickets = ptable.stride.total_tickets + tickets - p->u2.tickets;
     if (future_tickets > LIMITTICKETS) return -1;
@@ -1033,13 +1064,13 @@ void thread_exit(void *retval)
   }
 
   curproc->maxtid = (int)retval;
-  if (curproc->type == 's') {
-    struct proc *mthread = curproc->main_thread;
-    curproc->main_thread = curproc;
-    share_tickets(mthread);
-  }
   acquire(&ptable.lock);
   curproc->state = ZOMBIE;
+  
+  if (curproc->type == 's') {
+    pop_proc(curproc);
+    share_tickets(curproc->main_thread);
+  }
   wakeup1(curproc->main_thread);
   sched();
   panic("thread exit error with zombie");
@@ -1085,7 +1116,7 @@ void exitproc(struct proc *p)
   p->tid = 0;
   p->heap = 0;
   p->stack = 0; 
-  p->main_thread = p;
+  p->main_thread = 0;
   p->maxtid = 0;
   p->state = UNUSED;
   p->main_thread->hasThread[p->tid] = 0;
