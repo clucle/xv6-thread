@@ -10,6 +10,11 @@
 #define DEBUG 0
 #define THREADDEBUG 0
 
+
+const int LIMITTICKETS = 800;
+const int MAXTICKETS = 1000;
+const int STRIDE = 10000;
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -610,7 +615,7 @@ scheduler(void)
     if (ptable.stride.cntproc > 0) {
       if (ptable.mlfq.passvalue <= ptable.stride.p[1]->u1.passvalue) {
         // MLFQ using STRIDE
-        ptable.mlfq.passvalue += (1000 / (100 - ptable.stride.total_tickets));
+        ptable.mlfq.passvalue += (STRIDE / (MAXTICKETS - ptable.stride.total_tickets));
         mlfq_run(c);
       } else {
         // STRIDE using STRIDE
@@ -851,13 +856,15 @@ set_cpu_share(int tickets)
 {
   if (tickets == 0) return -1;
   struct proc* p = myproc();
+  int saved = tickets;
+  tickets = tickets * 10;
   if (p->type == 'm') {
-    if (ptable.stride.total_tickets + tickets > 80) return -1;
+    if (ptable.stride.total_tickets + tickets > LIMITTICKETS) return -1;
     
     acquire(&ptable.lock);
     ptable.stride.total_tickets += tickets;
     p->u2.tickets = tickets;
-    p->u3.stride = 1000 / tickets;
+    p->u3.stride = STRIDE / tickets;
     if (ptable.stride.cntproc == 0) {
       p->u1.passvalue = ptable.mlfq.passvalue;
     } else {
@@ -867,15 +874,15 @@ set_cpu_share(int tickets)
     push(p);
   } else {
     int future_tickets = ptable.stride.total_tickets + tickets - p->u2.tickets;
-    if (future_tickets > 80) return -1;
+    if (future_tickets > LIMITTICKETS) return -1;
     
     acquire(&ptable.lock);
     ptable.stride.total_tickets = future_tickets;
     p->u2.tick = tickets;
-    p->u3.stride = 1000 / tickets;
+    p->u3.stride = STRIDE / tickets;
   }
   release(&ptable.lock);
-  return tickets;
+  return saved;
 }
 
 int
@@ -1061,6 +1068,11 @@ void exitproc(struct proc *p)
       p->ofile[fd] = 0;
     }
   }
+  p->tid = 0;
+  p->heap = 0;
+  p->stack = 0; 
+  p->main_thread = p;
+  p->maxtid = 0;
   p->state = UNUSED;
   p->main_thread->hasThread[p->tid] = 0;
 }
