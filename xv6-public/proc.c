@@ -283,17 +283,20 @@ growproc(int n)
 {
   uint sz;
   struct proc *curproc = myproc();
-
-  sz = curproc->heap;
+  struct proc *mthread = curproc->main_thread;
+#if THREADDEBUG
+  cprintf("[PID : %d] heap : %d\n", mthread->pid, mthread->heap);
+#endif
+  sz = mthread->heap;
   if(n > 0){
-    if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
+    if((sz = allocuvm(mthread->pgdir, sz, sz + n)) == 0)
       return -1;
   } else if(n < 0){
-    if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
+    if((sz = deallocuvm(mthread->pgdir, sz, sz + n)) == 0)
       return -1;
   }
 
-  curproc->heap = sz;
+  mthread->heap = sz;
   switchuvm(curproc);
   return 0;
 }
