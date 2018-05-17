@@ -83,6 +83,28 @@ pop(void)
   shiftdown(1);
 }
 
+
+void
+pop_proc(struct proc* p)
+{
+  int i;
+  int find = -1;
+  for (i = 1; i < NPROC; i++) {
+    if (ptable.stride.p[i] == p) {
+      find = i;
+      break;
+    }
+  }
+
+  i = ptable.stride.cntproc;
+  if (find == -1 || i == 0) return ;
+  // pop find
+  swap(&ptable.stride.p[find], &ptable.stride.p[i]);
+  ptable.stride.p[i] = 0;
+  ptable.stride.cntproc--;
+  shiftdown(find);
+}
+
 void
 boost(void)
 {
@@ -387,31 +409,17 @@ exit(void)
 {
   struct proc *curproc = myproc();
   struct proc *p;
-  int fd;
 
   if (curproc->type == 's') {
     ptable.stride.total_tickets -= curproc->u2.tickets;
-    pop();
+    pop_proc(curproc);
   }
 
   if(curproc == initproc)
     panic("init exiting");
 
   deallocthread(curproc, -1);
-  /*
-  // Close all open files.
-  for(fd = 0; fd < NOFILE; fd++){
-    if(curproc->ofile[fd]){
-      fileclose(curproc->ofile[fd]);
-      curproc->ofile[fd] = 0;
-    }
-  }
-
-  begin_op();
-  iput(curproc->cwd);
-  end_op();
-  curproc->cwd = 0;
-*/
+  
   acquire(&ptable.lock);
 
   // Parent might be sleeping in wait().
@@ -561,15 +569,16 @@ mlfq_run(struct cpu* c)
 void
 stride_run(struct cpu *c)
 {
-  struct proc* p;
+  struct proc* p = ptable.stride.p[1];
   if (ptable.stride.cntproc > 0) {
-    p = ptable.stride.p[1];
-    if (p->state != RUNNABLE) {
-      pop();
+    // p = ptable.stride.p[1];
+    if (p->state != RUNNABLE) { 
+      pop_proc(p);
       push(p);
       p->u1.passvalue += p->u3.stride;
       return ;
     }
+
     c->proc = p;
     switchuvm(p);
     p->state = RUNNING;
@@ -647,8 +656,9 @@ yield(void)
   acquire(&ptable.lock);  //DOC: yieldlock
   if (myproc()->type == 'm') myproc()->u2.tick = 0;
   else if (myproc()->type == 's') {
-    struct proc* p = ptable.stride.p[1];
-    pop();
+    //struct proc* p = ptable.stride.p[1];
+    struct proc* p = myproc();
+    pop_proc(p);
     push(p);
     p->u1.passvalue += p->u3.stride;
   }
@@ -1053,17 +1063,5 @@ void exitproc(struct proc *p)
   }
   p->state = UNUSED;
   p->main_thread->hasThread[p->tid] = 0;
-  
-  // wakeup1(p->parent);
-  
-  /*for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-  {
-    if (p->parent == p) {
-      p->parent = initproc;
-      if (p->state == ZOMBIE)
-        wakeup1(initproc);
-    }
-  }*/
-  //p->state = UNUSED;
 }
 
