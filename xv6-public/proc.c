@@ -17,6 +17,7 @@ const int STRIDE = 10000;
 
 struct {
   struct spinlock lock;
+  struct spinlock slock;
   struct proc proc[NPROC];
   struct pqstride stride;
   struct mlfq mlfq;
@@ -72,9 +73,12 @@ shiftdown(int index)
 void
 push(struct proc *p)
 {
+  acquire(&ptable.slock);
   int i = ++ptable.stride.cntproc;
+  // cprintf("[PUSH] %d %d\n", p->pid, i);
   ptable.stride.p[i] = p;
   shiftup(i);
+  release(&ptable.slock);
 }
 
 void
@@ -92,6 +96,7 @@ pop(void)
 void
 pop_proc(struct proc* p)
 {
+  if (p->state == ZOMBIE || p->state == UNUSED) return ;
   int i;
   int find = -1;
   for (i = 1; i < NPROC; i++) {
@@ -414,8 +419,10 @@ exit(void)
 {
   struct proc *curproc = myproc();
   struct proc *p;
-
-  if (curproc->type == 's') {
+  
+  // Parent might be sleeping in wait().
+  wakeup1(curproc->parent);
+  if (curproc->type == 's') { 
     ptable.stride.total_tickets -= curproc->main_thread->alltickets;
   }
 
@@ -426,8 +433,6 @@ exit(void)
   
   acquire(&ptable.lock);
 
-  // Parent might be sleeping in wait().
-  wakeup1(curproc->parent);
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
@@ -577,9 +582,10 @@ stride_run(struct cpu *c)
   if (ptable.stride.cntproc > 0) {
     // p = ptable.stride.p[1];
     if (p->state != RUNNABLE) { 
-      pop_proc(p);
-      push(p);
+      // pop_proc(p);
+      // push(p);
       p->u1.passvalue += p->u3.stride;
+      shiftdown(1);
       return ;
     }
 
@@ -662,9 +668,10 @@ yield(void)
   else if (myproc()->type == 's') {
     //struct proc* p = ptable.stride.p[1];
     struct proc* p = myproc();
-    pop_proc(p);
-    push(p);
+    //pop_proc(p);
+    //push(p);
     p->u1.passvalue += p->u3.stride;
+    shiftdown(1);
   }
   myproc()->state = RUNNABLE;
   sched();
@@ -1065,12 +1072,14 @@ void thread_exit(void *retval)
 
   curproc->maxtid = (int)retval;
   acquire(&ptable.lock);
-  curproc->state = ZOMBIE;
   
   if (curproc->type == 's') {
     pop_proc(curproc);
     share_tickets(curproc->main_thread);
   }
+
+  curproc->state = ZOMBIE;
+
   wakeup1(curproc->main_thread);
   sched();
   panic("thread exit error with zombie");
@@ -1078,13 +1087,16 @@ void thread_exit(void *retval)
 
 void deallocthread(struct proc* mthread, int pid)
 {
+
   struct proc* p;
   pde_t *pgdir = mthread->pgdir;
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
-    if (p->pgdir == pgdir && p->pid != pid)
+    if (p->pgdir == pgdir && p->pid != pid && p->state != UNUSED)
     {
-      if (p->type == 's') pop_proc(p);
+      // if (p->type == 's') {
+        // pop_proc(p);
+      // }
       exitproc(p);
       begin_op();
       iput(p->cwd);
@@ -1104,6 +1116,9 @@ void deallocthread(struct proc* mthread, int pid)
 
 void exitproc(struct proc *p)
 {
+  if (p->type == 's') {
+    pop_proc(p);
+  }
   int fd;
   for (fd = 0; fd < NOFILE; fd++)
   {
