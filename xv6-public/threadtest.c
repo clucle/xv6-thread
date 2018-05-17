@@ -3,7 +3,7 @@
 #include "user.h"
 
 #define NUM_THREAD 10
-#define NTEST 14
+#define NTEST 15
 
 // Show race condition
 int racingtest(void);
@@ -26,6 +26,8 @@ int exittest2(void);
 // Test exec system call in multi-threaded environment
 int exectest(void);
 
+int forktest(void);
+
 // Test what happen when threads requests sbrk concurrently
 int sbrktest(void);
 
@@ -46,46 +48,45 @@ int gcnt;
 int gpipe[2];
 
 int (*testfunc[NTEST])(void) = {
-  
+  racingtest,
+  basictest,
+  jointest1,
+  jointest2,
+  stresstest,
   exittest1,
   exittest2,
-  exittest1,
-  exittest2,
-  exittest1,
-  exittest2,
-  exittest1,
-  exittest2,
-  exittest1,
-  exittest2,
-  exittest1,
-  exittest2,
-  exittest1,
-  exittest2,
+  exectest,
+  forktest,
+  sbrktest,
+  killtest,
+  pipetest,
+  sleeptest,
+  stridetest1,
+  stridetest2,
 };
 char *testname[NTEST] = {
-  
+  "racingtest",
+  "basictest",
+  "jointest1",
+  "jointest2",
+  "stresstest",
   "exittest1",
   "exittest2",
-  "exittest1",
-  "exittest2",
-  "exittest1",
-  "exittest2",
-  "exittest1",
-  "exittest2",
-  "exittest1",
-  "exittest2",
-  "exittest1",
-  "exittest2",
-  "exittest1",
-  "exittest2",
+  "exectest",
+  "forktest",
+  "sbrktest",
+  "killtest",
+  "pipetest",
+  "sleeptest",
+  "stridetest1",
+  "stridetest2",
 };
 
 int
 main(int argc, char *argv[])
 {
   int p;
-  for (p = 0; p <= 0; p++) {
-    printf(1, "%d 'th TEST\n", p);
+  for (p = 1; p <= 20; p++) {
   int i;
   int ret;
   int pid;
@@ -279,7 +280,7 @@ stressthreadmain(void *arg)
 int
 stresstest(void)
 {
-  const int nstress = 35000;
+  const int nstress = 1;
   thread_t threads[NUM_THREAD];
   int i, n;
   void *retval;
@@ -388,7 +389,47 @@ exectest(void)
   printf(1, "panic at exectest\n");
   return 0;
 }
+void*
+forkthread(void *arg)
+{
+    int pid;
+    if ((pid = fork()) == -1) {
+        printf(1, "panic at fork in forktest\n");
+        exit();
+    } else if (pid == 0) {
+        printf(1, "child\n");
+        exit();
+    } else {
+        printf(1, "parent\n");
+        if (wait() == -1) {
+            printf(1, "panic at wait in forktest\n");
+            exit();
+        }
+    }
+    thread_exit(0);
+}
 
+int
+forktest(void)
+{
+    thread_t threads[NUM_THREAD];
+    int i;
+    void *retval;
+    
+    for (i = 0; i < NUM_THREAD; i++) {
+        if (thread_create(&threads[i], forkthread, (void*)0) != 0) {
+            printf(1, "panic at thread_create\n");
+            exit();
+        }
+    }
+    for (i = 0; i < NUM_THREAD; i++) {
+        if (thread_join(threads[i], &retval) != 0) {
+            printf(1, "panic at thread_join\n");
+            exit();
+        }
+    }
+    exit();
+}
 // ============================================================================
 
 void*
