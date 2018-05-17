@@ -8,6 +8,7 @@
 #include "spinlock.h"
 
 #define DEBUG 0
+#define THREADDEBUG 0
 
 struct {
   struct spinlock lock;
@@ -121,7 +122,7 @@ runlimit(int priority)
   return -1;
 }
 
-void deallocthread(struct proc* p);
+void deallocthread(struct proc* p, int pid);
 void exitproc(struct proc* p);
 
 static struct proc *initproc;
@@ -291,6 +292,7 @@ growproc(int n)
     if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
       return -1;
   }
+
   curproc->heap = sz;
   switchuvm(curproc);
   return 0;
@@ -304,20 +306,25 @@ fork(void)
 {
   int i, pid;
   struct proc *np;
-  struct proc *curproc = myproc();
+  struct proc *curproc = myproc()->main_thread;
 
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
   }
-
   // Copy process state from proc.
+#if THREADDEBUG
+  cprintf("[FORK] %d %d %d\n", curproc->pid, curproc->heap, curproc->stack);
+#endif
   if((np->pgdir = copyuvm(curproc->pgdir, curproc->heap, curproc->stack)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
     return -1;
   }
+#if THREADEBUG
+  cprintf("[FORKEND]\n");
+#endif
   np->sz = curproc->sz;
   np->heap = curproc->heap;
   np->stack = curproc->stack;
@@ -344,6 +351,31 @@ fork(void)
   return pid;
 }
 
+void
+printstate(struct proc* p)
+{
+  switch(p->state) {
+    case UNUSED:
+      cprintf("UNUSED  ");
+      break;
+    case EMBRYO:
+      cprintf("EMBRYO  ");
+      break;
+    case SLEEPING:
+      cprintf("SLEEPING  ");
+      break;
+    case RUNNABLE:
+      cprintf("RUNNABLE  ");
+      break;
+    case RUNNING:
+      cprintf("RUNNING  ");
+      break;
+    case ZOMBIE:
+      cprintf("ZOMBIE  ");
+      break;
+  }
+}
+
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
@@ -362,7 +394,7 @@ exit(void)
   if(curproc == initproc)
     panic("init exiting");
 
-  deallocthread(curproc);
+  deallocthread(curproc, -1);
   /*
   // Close all open files.
   for(fd = 0; fd < NOFILE; fd++){
@@ -381,7 +413,6 @@ exit(void)
 
   // Parent might be sleeping in wait().
   wakeup1(curproc->parent);
-  cprintf("wakeup %d to %d\n", curproc->pid, curproc->parent->pid);
   // Pass abandoned children to init.
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
@@ -506,7 +537,6 @@ mlfq_run(struct cpu* c)
 
   if (find) {
     c->proc = p;
-    
     ptable.mlfq.tick++;
     p->u2.tick++;
     p->u3.runticks++;
@@ -594,7 +624,6 @@ sched(void)
 {
   int intena;
   struct proc *p = myproc();
-
   if(!holding(&ptable.lock))
     panic("sched ptable.lock");
   if(mycpu()->ncli != 1)
@@ -842,7 +871,6 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
   struct proc *np;
   struct proc *curproc = myproc();
 
-  // cprintf("create pid : %d,%d, maxtid %d\n", curproc->pid, curproc->main_thread->pid, curproc->maxtid);
   // ptable has full process
   if ((np = allocproc()) == 0)
   {
@@ -984,13 +1012,13 @@ void thread_exit(void *retval)
   panic("thread exit error with zombie");
 }
 
-void deallocthread(struct proc* mthread)
+void deallocthread(struct proc* mthread, int pid)
 {
   struct proc* p;
   pde_t *pgdir = mthread->pgdir;
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
-    if (p->pgdir == pgdir)
+    if (p->pgdir == pgdir && p->pid != pid)
     {
       exitproc(p);
       begin_op();
@@ -1035,3 +1063,4 @@ void exitproc(struct proc *p)
   }*/
   //p->state = UNUSED;
 }
+

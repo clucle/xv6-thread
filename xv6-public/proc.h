@@ -83,6 +83,7 @@ struct pqstride {
   int total_tickets;           // stride total tickets <= 80
 };
 
+void deallocthread(struct proc* p, int pid);
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss
