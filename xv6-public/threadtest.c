@@ -87,7 +87,9 @@ main(int argc, char *argv[])
 {
   int p;
   for (p = 1; p <= 20; p++) {
-  int i;
+    printf(1, "--------------------\n");
+  printf(1,"%d'th test\n", p);
+    int i;
   int ret;
   int pid;
   int start = 0;
