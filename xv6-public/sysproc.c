@@ -109,6 +109,12 @@ sys_thread_exit(void)
   return -1;
 }
 
+void
+sys_printallstate(void)
+{
+  printallstate();
+}
+
 int
 sys_sbrk(void)
 {

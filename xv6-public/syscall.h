@@ -28,4 +28,5 @@
 #define SYS_thread_create 27
 #define SYS_thread_join   28
 #define SYS_thread_exit   29
+#define SYS_printallstate 30
 

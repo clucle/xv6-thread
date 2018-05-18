@@ -398,6 +398,7 @@ fork(void)
   return pid;
 }
 
+  
 void
 printstate(struct proc* p)
 {
@@ -423,6 +424,19 @@ printstate(struct proc* p)
   }
 }
 
+void
+printallstate(void)
+{
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if (p->state != UNUSED) 
+    { 
+      cprintf("pid : %d ", p->pid);
+      printstate(p);
+      cprintf("\n");
+    }
+  }
+}
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait() to find out it exited.
@@ -438,7 +452,6 @@ exit(void)
   while (exlock > 0) {
     yield();
   }
-  cprintf("[EXIT] : %d\n", curproc->pid);
   
   if (curproc->type == 's') { 
     ptable.stride.total_tickets -= curproc->main_thread->alltickets;
@@ -469,13 +482,7 @@ exit(void)
 #if THREADEBUG
   cprintf("wakeup pid : %d\n", curproc->parent->pid);
   cprintf("exit : %d\n", curproc->pid); 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if (p->state != UNUSED) 
-    { cprintf("pid : %d ", p->pid);
-      printstate(p);
-      cprintf("\n");
-    }
-  }
+  printallstate();
   cprintf("exit end : %d\n", curproc->pid);
 #endif
   
@@ -502,30 +509,16 @@ wait(void)
   struct proc *p;
   int havekids, pid;
   struct proc *curproc = myproc();
-  
   acquire(&ptable.lock);
   for(;;){
     // Scan through table looking for exited children.
     havekids = 0;
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if (p->pgdir == curproc->pgdir && 
-          p->main_thread != p &&
-          p->state == ZOMBIE &&
-          p->parent->state == ZOMBIE){
-        kfree(p->kstack);
-        p->kstack = 0;
-        p->pid = 0;
-        p->parent = 0;
-        p->name[0] = 0;
-        p->killed = 0;
-        p->state = UNUSED;
-      }
-    }
+    
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != curproc)
         continue;
       havekids = 1;
-      if(p->state == ZOMBIE){
+      if(p->state == ZOMBIE && p->main_thread == p){
         // Found one.
         pid = p->pid;
 #if THREADEBUG
@@ -551,6 +544,7 @@ wait(void)
     }
 
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+
     sleep(curproc, &ptable.lock);  //DOC: wait-sleep
   }
 }
@@ -623,7 +617,6 @@ mlfq_run(struct cpu* c)
     ptable.mlfq.tick++;
     p->u2.tick++;
     p->u3.runticks++;
-
 #if DEBUG
     cprintf("schd call %d\n", myproc()->u1.priority);
 #endif
@@ -726,6 +719,7 @@ sched(void)
 void
 yield(void)
 {
+  if (myproc()->cguard == 1) return ;
   acquire(&ptable.lock);  //DOC: yieldlock
   if (myproc()->type == 'm') myproc()->u2.tick = 0;
   else if (myproc()->type == 's') {
@@ -768,7 +762,6 @@ void
 sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-  
   if(p == 0)
     panic("sleep");
 
@@ -1089,7 +1082,6 @@ thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg)
   np->heap = mthread->heap;
   np->tf->eip = (uint)start_routine;
   np->tf->esp = sz;
-  cprintf("%d makes %d\n", curproc->pid, np->pid);
   // Change Process State
   acquire(&ptable.lock);
   np->state = RUNNABLE;
@@ -1143,19 +1135,18 @@ void thread_exit(void *retval)
     share_tickets(curproc->main_thread);
   }
 
+  wakeup1(curproc->main_thread); 
   curproc->state = ZOMBIE;
 
-  wakeup1(curproc->main_thread);
+  
   sched();
   panic("thread exit error with zombie");
 }
 
 void deallocthread(struct proc* mthread, int pid)
 {
-  cprintf("prev %d %d\n", mthread->pid, mthread->cguard);
   while((__sync_val_compare_and_swap(&mthread->cguard, 0, 1)) == 1);
-  cprintf("after %d %d\n", mthread->pid, mthread->cguard);
-  struct proc* p;
+  struct proc *p; 
   int stack = mthread->stack;
   pde_t *pgdir = mthread->pgdir;
 
@@ -1178,6 +1169,7 @@ void deallocthread(struct proc* mthread, int pid)
   {
     panic("dealloc uvm err");
   }
+
   __sync_fetch_and_sub(&mthread->cguard, 1);
 }
 
