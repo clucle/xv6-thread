@@ -124,7 +124,8 @@ main(int argc, char *argv[])
       close(gpipe[0]);
     }
     printf(1,"%d. %s finish\n", i, testname[i]);
-    sleep(100);
+    sleep(1);
+    printallstate();
   }
   }
   exit();
@@ -280,7 +281,7 @@ stressthreadmain(void *arg)
 int
 stresstest(void)
 {
-  const int nstress = 1;
+  const int nstress = 35000;
   thread_t threads[NUM_THREAD];
   int i, n;
   void *retval;

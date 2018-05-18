@@ -453,7 +453,6 @@ exit(void)
   while (exlock > 0) {
     yield();
   }
-  
   if (curproc->type == 's') { 
     ptable.stride.total_tickets -= curproc->main_thread->alltickets;
   }
@@ -524,6 +523,7 @@ wait(void)
           p->state == ZOMBIE &&
           p->parent->state == ZOMBIE) 
       {
+        cprintf("maybe not used\n");
         kfree(p->kstack);
         p->kstack = 0;
         p->pid = 0;
@@ -536,10 +536,12 @@ wait(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != curproc && p->eguard == 1)
         continue;
+
       havekids = 1;
-      if(p->state == ZOMBIE){
+      if(p->state == ZOMBIE && p->parent->pid != curproc->parent->pid){
         // Found one.
         pid = p->pid;
+
 #if THREADEBUG
         cprintf("pid : %d\n", pid);
 #endif
@@ -1123,6 +1125,7 @@ thread_join(thread_t thread, void **retval)
       {
         if (p->state == ZOMBIE)
         {
+
           *retval = (void*)p->maxtid;
           exitproc(p);
           kfree(p->kstack);
@@ -1153,10 +1156,9 @@ void thread_exit(void *retval)
     pop_proc(curproc);
     share_tickets(curproc->main_thread);
   }
-
   wakeup1(curproc->main_thread); 
   curproc->state = ZOMBIE;
-
+  //printallstate();
   
   sched();
   panic("thread exit error with zombie");
@@ -1166,7 +1168,7 @@ void deallocthread(struct proc* mthread, int pid)
 {
   while((__sync_val_compare_and_swap(&mthread->cguard, 0, 1)) == 1);
   struct proc *p; 
-  int stack = mthread->stack;
+ // int stack = mthread->stack;
   pde_t *pgdir = mthread->pgdir;
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -1180,7 +1182,7 @@ void deallocthread(struct proc* mthread, int pid)
       p->cwd = 0;
     }
   }
-
+/*
   uint sz = KERNBASE - 3 * PGSIZE;
   uint min = stack - (mthread->maxtid * PGSIZE);
   mthread->maxtid = 0;
@@ -1188,7 +1190,7 @@ void deallocthread(struct proc* mthread, int pid)
   {
     panic("dealloc uvm err");
   }
-
+*/
   __sync_fetch_and_sub(&mthread->cguard, 1);
 }
 
