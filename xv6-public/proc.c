@@ -459,7 +459,6 @@ exit(void)
 
   if(curproc == initproc)
     panic("init exiting");
-  cprintf("%d's dealloc\n");
   deallocthread(curproc, curproc->pid);
   
   if (curproc->type == 's') {
@@ -1167,11 +1166,8 @@ void thread_exit(void *retval)
 
 void deallocthread(struct proc* mthread, int pid)
 {
-  cprintf("%d [DEALLOC]\n", pid);
   while((__sync_val_compare_and_swap(&mthread->cguard, 0, 1)) == 1);
   
-  cprintf("%d [DEA START]\n", pid);
-  printallstate();
   struct proc *p; 
  // int stack = mthread->stack;
   pde_t *pgdir = mthread->pgdir;
@@ -1187,8 +1183,6 @@ void deallocthread(struct proc* mthread, int pid)
       exitproc(p);
     }
   }
-  cprintf("dealloc end\n");
-  printallstate();
 /*
   uint sz = KERNBASE - 3 * PGSIZE;
   uint min = stack - (mthread->maxtid * PGSIZE);
