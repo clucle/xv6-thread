@@ -518,24 +518,6 @@ wait(void)
     // Scan through table looking for exited children.
     havekids = 0;
     
-
-        
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if (p->pgdir == curproc->pgdir &&
-          p->main_thread != p &&
-          p->state == ZOMBIE &&
-          p->parent->state == ZOMBIE) 
-      {
-        cprintf("maybe not used\n");
-        kfree(p->kstack);
-        p->kstack = 0;
-        p->pid = 0;
-        p->parent = 0;
-        p->name[0] = 0;
-        p->killed = 0;
-        p->state = UNUSED;
-      }
-    }
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != curproc)
         continue;
