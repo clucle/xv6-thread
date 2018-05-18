@@ -319,9 +319,11 @@ userinit(void)
 int
 growproc(int n)
 {
-  uint sz;
+
   struct proc *curproc = myproc();
   struct proc *mthread = curproc->main_thread;
+  while((__sync_val_compare_and_swap(&mthread->cguard, 0, 1)) == 1);
+  uint sz;
 #if THREADDEBUG
   cprintf("[PID : %d] heap : %d\n", mthread->pid, mthread->heap);
 #endif
@@ -335,6 +337,7 @@ growproc(int n)
   }
 
   mthread->heap = sz;
+  __sync_fetch_and_sub(&mthread->cguard, 1);
   switchuvm(curproc);
   return 0;
 }
@@ -457,7 +460,7 @@ exit(void)
     ptable.stride.total_tickets -= curproc->main_thread->alltickets;
   }
 
-  if(curproc == initproc)
+ if(curproc == initproc)
     panic("init exiting");
   deallocthread(curproc, curproc->pid);
   
@@ -1169,7 +1172,6 @@ void deallocthread(struct proc* mthread, int pid)
   while((__sync_val_compare_and_swap(&mthread->cguard, 0, 1)) == 1);
   
   struct proc *p; 
- // int stack = mthread->stack;
   pde_t *pgdir = mthread->pgdir;
 
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
@@ -1187,6 +1189,7 @@ void deallocthread(struct proc* mthread, int pid)
   //cprintf("%d dealloc\n", pid);
   //printallstate();
 /*
+  int stack = mthread->stack;
   uint sz = KERNBASE - 3 * PGSIZE;
   uint min = stack - (mthread->maxtid * PGSIZE);
   mthread->maxtid = 0;
@@ -1194,7 +1197,7 @@ void deallocthread(struct proc* mthread, int pid)
   {
     panic("dealloc uvm err");
   }
-*/
+**/
   __sync_fetch_and_sub(&mthread->cguard, 1);
 }
 
