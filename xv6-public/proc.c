@@ -537,7 +537,7 @@ wait(void)
       }
     }
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->parent != curproc && p->eguard == 1)
+      if(p->parent != curproc)
         continue;
 
       havekids = 1;
