@@ -239,6 +239,7 @@ found:
   p->main_thread = p;
   p->guard = 0;
   p->cguard = 0;
+  p->eguard = 0;
   p->maxtid = 0;
   int i;
   for (i = 0; i < 64; i++) {
@@ -496,6 +497,7 @@ exit(void)
   }
 
   // Jump into the scheduler, never to return.
+  curproc->eguard = 1;
   curproc->state = ZOMBIE;
   sched();
   panic("zombie exit");
@@ -514,11 +516,28 @@ wait(void)
     // Scan through table looking for exited children.
     havekids = 0;
     
+
+        
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->parent != curproc)
+      if (p->pgdir == curproc->pgdir &&
+          p->main_thread != p &&
+          p->state == ZOMBIE &&
+          p->parent->state == ZOMBIE) 
+      {
+        kfree(p->kstack);
+        p->kstack = 0;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+      }
+    }
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != curproc && p->eguard == 1)
         continue;
       havekids = 1;
-      if(p->state == ZOMBIE && p->main_thread == p){
+      if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
 #if THREADEBUG
@@ -1194,6 +1213,7 @@ void exitproc(struct proc *p)
   p->stack = 0; 
   p->maxtid = 0;
   p->pgdir = 0;
+  p->eguard = 1;
   p->main_thread = 0;
 }
 

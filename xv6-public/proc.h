@@ -71,6 +71,7 @@ struct proc {
   int alltickets;              // [thread] all thread's ticket saved a tmainthread
   int guard;                   // [thread] exit guard
   int cguard;                  // [thread] thread_create guard
+  int eguard;                  // [thread] check exit or threadexit
 };
 
 struct mlfq {
