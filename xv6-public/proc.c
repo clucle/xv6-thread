@@ -538,10 +538,10 @@ wait(void)
         continue;
 
       havekids = 1;
-      if(p->state == ZOMBIE && p->parent->pid != curproc->parent->pid){
+      if(p->state == ZOMBIE && p->parent->pid != curproc->parent->pid && p->eguard == 1){
         // Found one.
         pid = p->pid;
-
+//         cprintf("%d wake %d\n", p->pid, curproc->pid);
 #if THREADEBUG
         cprintf("pid : %d\n", pid);
 #endif
@@ -1183,6 +1183,9 @@ void deallocthread(struct proc* mthread, int pid)
       exitproc(p);
     }
   }
+
+  //cprintf("%d dealloc\n", pid);
+  //printallstate();
 /*
   uint sz = KERNBASE - 3 * PGSIZE;
   uint min = stack - (mthread->maxtid * PGSIZE);
