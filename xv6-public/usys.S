@@ -34,3 +34,7 @@ SYSCALL(getppid)
 SYSCALL(yield)
 SYSCALL(getlev)
 SYSCALL(set_cpu_share)
+SYSCALL(thread_create)
+SYSCALL(thread_join)
+SYSCALL(thread_exit)
+SYSCALL(printallstate);

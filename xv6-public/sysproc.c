@@ -57,7 +57,6 @@ sys_yield(void)
 int
 sys_getlev(void)
 {
-  // TODO: get cur mlfq level
   return getlev();
 }
 
@@ -71,6 +70,52 @@ sys_set_cpu_share(void)
 }
 
 int
+sys_thread_create(void)
+{
+  thread_t *thread;
+  void *(*start_routine)(void *);
+  void *arg;
+  if (argptr(0, (void*)&thread, sizeof(thread) < 0))
+    return -1;
+  if (argptr(1, (void*)&start_routine, sizeof(start_routine) < 0))
+    return -1;
+  if (argptr(2, (void*)&arg, sizeof(arg) < 0))
+    return -1;
+  return thread_create(thread, start_routine, arg);
+}
+
+int
+sys_thread_join(void)
+{
+  thread_t thread;
+  void **retval;
+  if (argint(0, (int*)&thread) < 0)
+    return -1;
+  if (argptr(1, (void*)&retval, sizeof(retval) < 0))
+    return -1;
+  return thread_join(thread, retval);
+}
+
+int
+sys_thread_exit(void)
+{
+  void *retval;
+  if (argptr(0, (void*)&retval, sizeof(retval) < 0))
+    return -1;
+  thread_exit(retval);
+
+  // not reach
+  panic("thread_exit zombie");
+  return -1;
+}
+
+void
+sys_printallstate(void)
+{
+  printallstate();
+}
+
+int
 sys_sbrk(void)
 {
   int addr;
@@ -78,7 +123,7 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
-  addr = myproc()->sz;
+  addr = myproc()->main_thread->heap;
   if(growproc(n) < 0)
     return -1;
   return addr;

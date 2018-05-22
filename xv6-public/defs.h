@@ -124,6 +124,10 @@ void            mlfq_yield(void);
 void            stride_yield(void);
 int             getlev(void);
 int             set_cpu_share(int tickets);
+int             thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg);
+int             thread_join(thread_t thread, void **retval);
+void            thread_exit(void *retval);
+void            printallstate(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -184,7 +188,7 @@ int             deallocuvm(pde_t*, uint, uint);
 void            freevm(pde_t*);
 void            inituvm(pde_t*, char*, uint);
 int             loaduvm(pde_t*, char*, struct inode*, uint, uint);
-pde_t*          copyuvm(pde_t*, uint);
+pde_t*          copyuvm(pde_t*, uint, uint);
 void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);

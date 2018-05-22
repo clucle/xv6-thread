@@ -108,7 +108,11 @@ extern int sys_getppid(void);
 extern int sys_yield(void);
 extern int sys_getlev(void);
 extern int sys_set_cpu_share(void);
-
+/* Proj3 Thread */
+extern int sys_thread_create(void);
+extern int sys_thread_join(void);
+extern int sys_thread_exit(void);
+extern int sys_printallstate(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -137,6 +141,10 @@ static int (*syscalls[])(void) = {
 [SYS_yield]   sys_yield,
 [SYS_getlev]  sys_getlev,
 [SYS_set_cpu_share] sys_set_cpu_share,
+[SYS_thread_create] sys_thread_create,
+[SYS_thread_join]   sys_thread_join,
+[SYS_thread_exit]   sys_thread_exit,
+[SYS_printallstate] sys_printallstate,
 };
 
 void

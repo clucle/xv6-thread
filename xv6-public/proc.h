@@ -62,6 +62,16 @@ struct proc {
     int runticks;              // [mlfq]   cur process runticks
     int stride;                // [stride] cur process stride
   } u3;
+  int tid;                     // [thread] thread id / init : -1
+  int heap;                    // [thread] top of heap (main thread)
+  int stack;                   // [thread] per process base_stack
+  int hasThread[64];           // [thread] find empty stack space;
+  struct proc *main_thread;    // [thread] main thread parent
+  int maxtid;                  // [thread] stack max low;
+  int alltickets;              // [thread] all thread's ticket saved a tmainthread
+  int guard;                   // [thread] exit guard
+  int cguard;                  // [thread] thread_create guard
+  int eguard;                  // [thread] check exit or threadexit
 };
 
 struct mlfq {
@@ -77,6 +87,7 @@ struct pqstride {
   int total_tickets;           // stride total tickets <= 80
 };
 
+void deallocthread(struct proc* p, int pid);
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss
