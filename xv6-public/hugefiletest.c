@@ -21,15 +21,27 @@ main(int argc, char *argv[])
 
     printf(1, "hugefiletest starting\n");
     
-    int t = pwrite(fd, data, sizeof(data), 3);
-    printf(1, "test %d\n", t);
     const int sz = sizeof(data);
     for (i = 0; i < sz; i++) {
         data[i] = i % 128;
     }
 
-    printf(1, "1. create test\n");
     fd = open(path, O_CREATE | O_RDWR);
+    int t = pwrite(fd, data, sizeof(data), 3);
+    printf(1, "test %d\n", t);
+
+    t = pread(fd, buf, sizeof(data), 3);
+    printf(1, "%s\n", buf);
+
+        for (j = 0; j < sz; j++) {
+            if (buf[j] != data[j]) {
+                printf(1, "data inconsistency detected\n");
+                exit();
+            }
+        }
+    close(fd);
+    exit();
+    printf(1, "1. create test\n");
     for(i = 0; i < BUF_PER_FILE; i++){
         if (i % 100 == 0){
             printf(1, "%d bytes written\n", i * BUFSIZE);

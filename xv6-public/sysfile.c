@@ -104,7 +104,15 @@ int sys_pwrite(void)
 
 int sys_pread(void)
 {
-  return -1;
+
+  struct file *f;
+  int n, offset;
+  char *p;
+
+  if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 
+      || argint(3, &offset) < 0 || argptr(1, &p, n) < 0)
+    return -1;
+  return filepread(f, p, n, offset);
 }
 
 int
