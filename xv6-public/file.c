@@ -155,3 +155,8 @@ filewrite(struct file *f, char *addr, int n)
   panic("filewrite");
 }
 
+int
+filepwrite(struct file *f, char *addr, int n, int offset)
+{
+  return 1;
+}

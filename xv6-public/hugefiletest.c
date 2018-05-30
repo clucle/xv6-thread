@@ -20,6 +20,9 @@ main(int argc, char *argv[])
     char buf[BUFSIZE];
 
     printf(1, "hugefiletest starting\n");
+    
+    int t = pwrite(fd, data, sizeof(data), 3);
+    printf(1, "test %d\n", t);
     const int sz = sizeof(data);
     for (i = 0; i < sz; i++) {
         data[i] = i % 128;
