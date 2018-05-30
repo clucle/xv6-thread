@@ -33,6 +33,9 @@ int thread_create(thread_t *thread, void *(*start_routine)(void *), void *arg);
 int thread_join(thread_t thread, void **retval);
 int thread_exit(void *retval) __attribute__((noreturn));
 void printallstate(void);
+/* Proj5 */
+int pwrite(int, void*, int, int);
+int pread (int, void*, int, int);
 
 // ulib.c
 int stat(char*, struct stat*);

@@ -90,6 +90,16 @@ sys_write(void)
   return filewrite(f, p, n);
 }
 
+int sys_pwrite(void)
+{
+  return -1;
+}
+
+int sys_pread(void)
+{
+  return -1;
+}
+
 int
 sys_close(void)
 {
