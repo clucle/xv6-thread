@@ -16,10 +16,15 @@ struct {
   struct file file[NFILE];
 } ftable;
 
+char blank[512];
 void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
+  int i;
+  for (i = 0; i < 512; i++) {
+    blank[i] = ' ';
+  }
 }
 
 // Allocate a file structure.
@@ -153,5 +158,75 @@ filewrite(struct file *f, char *addr, int n)
     return i == n ? n : -1;
   }
   panic("filewrite");
+}
+
+
+int
+filepwrite(struct file *f, char *addr, int n, int offset)
+{
+
+  int r;
+
+  if(f->writable == 0)
+    return -1;
+  if(f->type == FD_INODE){
+    int max = ((MAXOPBLOCKS-1-1-2) / 2) * 512;
+    int i = 0;
+    
+    int fsize = f->ip->size; 
+    if (offset > fsize) {
+      // f->size ~ offset will blank
+      i = fsize;
+
+      while (i < offset) {
+        int n2 = offset - i;
+        if (n2 > max)
+          n2 = max;
+        begin_op();
+        ilock(f->ip);
+        if ((r = writei(f->ip, blank, i, n2)) > 0)
+          i += r;
+        iunlock(f->ip);
+        end_op();
+      }
+    }
+    i = 0;
+    while(i < n){
+      int n1 = n - i;
+      if(n1 > max)
+        n1 = max;
+
+      begin_op();
+      ilock(f->ip);
+      if ((r = writei(f->ip, addr + i, offset, n1)) > 0)
+        offset += r;
+      iunlock(f->ip);
+      end_op();
+
+      if(r < 0)
+        break;
+      if(r != n1)
+        panic("short filewrite");
+      i += r;
+    }
+    return i == n ? n : -1;
+  }
+  panic("filewrite");
+  return 1;
+}
+
+
+int
+filepread(struct file *f, char *addr, int n, int offset)
+{
+  int r;
+  if(f->readable == 0)
+    return -1;
+  if(f->type == FD_INODE){
+    if((r = readi(f->ip, addr, offset, n)) > 0)
+      offset += r;
+    return r;
+  }
+  panic("fileread");
 }
 

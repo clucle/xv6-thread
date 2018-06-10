@@ -113,6 +113,9 @@ extern int sys_thread_create(void);
 extern int sys_thread_join(void);
 extern int sys_thread_exit(void);
 extern int sys_printallstate(void);
+/* Proj5 File */
+extern int sys_pwrite(void);
+extern int sys_pread(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -145,6 +148,8 @@ static int (*syscalls[])(void) = {
 [SYS_thread_join]   sys_thread_join,
 [SYS_thread_exit]   sys_thread_exit,
 [SYS_printallstate] sys_printallstate,
+[SYS_pwrite] sys_pwrite,
+[SYS_pread]  sys_pread,
 };
 
 void
